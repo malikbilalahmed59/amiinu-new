@@ -1,0 +1,13 @@
+<!-- templates/accounts/verification_email.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify Your Email</title>
+</head>
+<body>
+    <p>Hi {{ user.username }},</p>
+    <p>Thanks for signing up! Please verify your email by clicking the link below:</p>
+    <a href="{{ verification_link }}">Verify Email</a>
+    <p>If you didn’t sign up for this account, you can ignore this email.</p>
+</body>
+</html>
