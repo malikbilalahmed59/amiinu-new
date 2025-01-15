@@ -46,7 +46,7 @@ class ForgotPasswordAPIView(APIView):
     permission_classes = []
 
     def post(self, request):
-        identifier = request.data.get('identifier')
+        identifier = request.data.get('username')
 
         if not identifier:
             return Response({'message': 'Email or Username is required.'}, status=status.HTTP_400_BAD_REQUEST)

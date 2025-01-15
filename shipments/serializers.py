@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import Shipment, Container, Product
 
+from rest_framework import serializers
+from .models import Shipment, Container, Product
+
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,7 +16,44 @@ class ContainerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Container
-        fields = ['id', 'container_type', 'package_type', 'length', 'width', 'height', 'weight', 'quantity', 'products']
+        fields = [
+            'id', 'container_type', 'package_type', 'length', 'width', 'height', 'weight', 'quantity', 'products'
+        ]
+
+    def validate(self, attrs):
+        """
+        Validates container_type and package_type based on shipment type and international shipping type.
+        """
+        shipment = self.context.get('shipment')  # Pass shipment instance via serializer context
+        if not shipment:
+            raise serializers.ValidationError("Shipment instance is required for validation.")
+
+        shipment_type = shipment.shipment_type
+        international_shipping_type = shipment.international_shipping_type
+
+        container_type = attrs.get('container_type')
+        package_type = attrs.get('package_type')
+
+        if shipment_type == 'international':
+            if international_shipping_type in ['fcl_sea']:
+                if not container_type:
+                    raise serializers.ValidationError(
+                        "For FCL shipments, 'container_type' must be specified and 'package_type' must be empty."
+                    )
+                if package_type:
+                    raise serializers.ValidationError(
+                        "For FCL shipments, 'package_type' should not be specified."
+                    )
+            elif international_shipping_type in ['lcl_sea', 'economy_air', 'express_air']:
+                if not package_type:
+                    raise serializers.ValidationError(
+                        "For LCL or air shipments, 'package_type' must be specified and 'container_type' must be empty."
+                    )
+                if container_type:
+                    raise serializers.ValidationError(
+                        "For LCL or air shipments, 'container_type' should not be specified."
+                    )
+        return attrs
 
 
 class ShipmentSerializer(serializers.ModelSerializer):
@@ -35,7 +75,9 @@ class ShipmentSerializer(serializers.ModelSerializer):
 
         for container_data in containers_data:
             products_data = container_data.pop('products')
-            container = Container.objects.create(shipment=shipment, **container_data)
+            serializer = ContainerSerializer(data=container_data, context={'shipment': shipment})
+            serializer.is_valid(raise_exception=True)
+            container = serializer.save(shipment=shipment)
 
             for product_data in products_data:
                 Product.objects.create(container=container, **product_data)
@@ -46,33 +88,14 @@ class ShipmentSerializer(serializers.ModelSerializer):
         containers_data = validated_data.pop('containers', [])
         instance = super().update(instance, validated_data)
 
-        # Handle Containers
-        existing_containers = {container.id: container for container in instance.containers.all()}
+        # Handle containers and validation
         for container_data in containers_data:
             products_data = container_data.pop('products', [])
-            container_id = container_data.get('id')
+            serializer = ContainerSerializer(data=container_data, context={'shipment': instance})
+            serializer.is_valid(raise_exception=True)
+            container = serializer.save(shipment=instance)
 
-            if container_id and container_id in existing_containers:
-                container = existing_containers[container_id]
-                for attr, value in container_data.items():
-                    setattr(container, attr, value)
-                container.save()
-
-                # Handle Products
-                existing_products = {product.id: product for product in container.products.all()}
-                for product_data in products_data:
-                    product_id = product_data.get('id')
-
-                    if product_id and product_id in existing_products:
-                        product = existing_products[product_id]
-                        for attr, value in product_data.items():
-                            setattr(product, attr, value)
-                        product.save()
-                    else:
-                        Product.objects.create(container=container, **product_data)
-            else:
-                new_container = Container.objects.create(shipment=instance, **container_data)
-                for product_data in products_data:
-                    Product.objects.create(container=new_container, **product_data)
+            for product_data in products_data:
+                Product.objects.create(container=container, **product_data)
 
         return instance
