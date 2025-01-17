@@ -133,40 +133,71 @@ class LoginView(APIView):
 
         return Response({'message': 'The email or password you entered is incorrect. Please try again.'}, status=status.HTTP_401_UNAUTHORIZED)
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.urls import reverse
+from django.conf import settings
+from django.contrib.sites.shortcuts import get_current_site
+from .serializers import SignupSerializer
+from .models import CustomUser
+from .tokens import token_generator  # Ensure your token generator is implemented
 
 class SignupView(APIView):
     permission_classes = []
 
     def post(self, request):
+        # Deserialize user data
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
+            # Save the user
             user = serializer.save()
             user.role = 'normal'
             user.is_active = False
             user.save()
 
-            current_site = get_current_site(request)
+            # Generate email verification link
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = token_generator.make_token(user)
-            verification_link = f"http://{current_site.domain}{reverse('accounts:email-verify', kwargs={'uidb64': uid, 'token': token})}"
+            verification_path = reverse('accounts:email-verify', kwargs={'uidb64': uid, 'token': token})
+            verification_link = request.build_absolute_uri(verification_path)
 
+            # Generate absolute URLs for static files
+            email_logo_url = request.build_absolute_uri(settings.STATIC_URL + "images/email-logo-img.png")
+            email_bg_url = request.build_absolute_uri(settings.STATIC_URL + "images/email-bg-img.jpg")
+
+            # Prepare email content
             subject = "Verify Your Email"
             html_message = render_to_string('accounts/verification_email.html', {
                 'user': user,
                 'verification_link': verification_link,
+                'email_logo_url': email_logo_url,
+                'email_bg_url': email_bg_url,
             })
             from_email = settings.DEFAULT_FROM_EMAIL
             recipient_list = [user.email]
 
+            # Send email
             try:
-                email = EmailMultiAlternatives(subject, html_message, from_email, recipient_list)
+                email = EmailMultiAlternatives(subject, "", from_email, recipient_list)
                 email.attach_alternative(html_message, "text/html")
                 email.send()
-                return Response({'message': 'Your account has been created successfully! Please check your email to verify your account.'}, status=status.HTTP_201_CREATED)
+                return Response(
+                    {'message': 'Your account has been created successfully! Please check your email to verify your account.'},
+                    status=status.HTTP_201_CREATED
+                )
             except Exception as e:
-                return Response({'message': f'Failed to send email: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {'message': f'Failed to send email: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-        return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        # Handle invalid data
+        return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EmailVerifyView(APIView):

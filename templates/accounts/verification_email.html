@@ -1,26 +1,25 @@
 <!DOCTYPE html>
 <html>
-{% load static %}
 <head>
     <title>Welcome Email</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif;">
-    <table width="580px" cellpadding="0" cellspacing="0" border="0" style=" margin-left: auto; margin-right: auto;">
+    <table width="580px" cellpadding="0" cellspacing="0" border="0" style="margin-left: auto; margin-right: auto;">
         <tr>
             <td align="center">
                 <table width="600" cellpadding="0" cellspacing="0" border="0" style="overflow: hidden;">
                     <!-- Header Section -->
                     <tr>
                         <td align="center">
-                            <img src="{% static 'images/email-logo-img.png' %}" alt="email-logo-img" style=" height: auto;">
+                            <img src="{{ email_logo_url }}" alt="email-logo-img" style="height: auto;">
                         </td>
                     </tr>
                     <tr>
                         <td style="height: 40px;"></td>
                     </tr>
                     <tr>
-                        <td align="center" style="height: 119px; background: url({% static 'images/email-bg-img.jpg' %}) no-repeat center; background-size: cover;">
+                        <td align="center" style="height: 119px; background: url({{ email_bg_url }}) no-repeat center; background-size: cover;">
                             <p style="margin: 0; font-size: 18px; font-weight: 500;">Let’s Streamline Your Logistics Together!</p>
                         </td>
                     </tr>
