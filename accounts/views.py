@@ -131,7 +131,7 @@ class LoginView(APIView):
                 'access': str(refresh.access_token),
             }, status=status.HTTP_200_OK)
 
-        return Response({'message': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'message': 'The email or password you entered is incorrect. Please try again.'}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class SignupView(APIView):
