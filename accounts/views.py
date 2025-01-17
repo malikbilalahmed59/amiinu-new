@@ -145,7 +145,7 @@ from django.conf import settings
 from django.contrib.sites.shortcuts import get_current_site
 from .serializers import SignupSerializer
 from .models import CustomUser
-from .tokens import token_generator  # Ensure your token generator is implemented
+from django.contrib.auth.tokens import default_token_generator as token_generator
 
 class SignupView(APIView):
     permission_classes = []
@@ -161,10 +161,10 @@ class SignupView(APIView):
             user.save()
 
             # Generate email verification link
+            current_site = get_current_site(request)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = token_generator.make_token(user)
-            verification_path = reverse('accounts:email-verify', kwargs={'uidb64': uid, 'token': token})
-            verification_link = request.build_absolute_uri(verification_path)
+            verification_link = f"https://{current_site.domain}{reverse('accounts:email-verify', kwargs={'uidb64': uid, 'token': token})}"
 
             # Generate absolute URLs for static files
             email_logo_url = request.build_absolute_uri(settings.STATIC_URL + "images/email-logo-img.png")
