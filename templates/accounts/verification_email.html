@@ -1,13 +1,101 @@
-<!-- templates/accounts/verification_email.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Verify Your Email</title>
+    <title>Welcome Email</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
 </head>
-<body>
-    <p>Hi {{ user.username }},</p>
-    <p>Thanks for signing up! Please verify your email by clicking the link below:</p>
-    <a href="{{ verification_link }}">Verify Email</a>
-    <p>If you didn’t sign up for this account, you can ignore this email.</p>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif;">
+    <table width="580px" cellpadding="0" cellspacing="0" border="0" style=" margin-left: auto; margin-right: auto;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" border="0" style="overflow: hidden;">
+                    <!-- Header Section -->
+                    <tr>
+                        <td align="center">
+                            <img src="{% static 'images/email-logo-img.png' %}" alt="email-logo-img" style=" height: auto;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="height: 40px;"></td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="height: 119px; background: url({% static 'images/email-bg-img.jpg' %}) no-repeat center; background-size: cover;">
+                            <p style="margin: 0; font-size: 18px; font-weight: 500;">Let’s Streamline Your Logistics Together!</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="height: 40px;"></td>
+                    </tr>
+
+                    <!-- Content Section -->
+                    <tr>
+                        <td style="text-align: left; color: #333; font-size: 16px;">
+                            <h1 style="font-size: 24px; color: #333; margin: 0;">Hi {{ user.username }},</h1>
+                            <p style="line-height: 1.6; margin: 15px 0;">
+                                Welcome to AMIINU! We're thrilled to have you on board and are excited to help you transform your logistics experience.
+                            </p>
+                            <p style="line-height: 1.6; margin: 15px 0;">
+                                With AMIINU, you gain access to a seamless platform designed to make shipping and managing your cargo effortless. Whether it's tracking your shipments, requesting quotes, or managing delivery schedules, we've got you covered every step of the way.
+                            </p>
+                            <div style="text-align: center; margin: 20px 0;">
+                                <a href="{{ verification_link }}" style="display: inline-block; padding: 10px 25px; background-color: #ff00ff; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 42px;">Verify Email</a>
+                            </div>
+                            <p style="line-height: 1.6; margin: 15px 0;">
+                                We're excited to partner with you in achieving your logistics goals. Welcome to a smarter, more efficient way of shipping!
+                            </p>
+                            <p style="margin: 15px 0;">Best Regards,</p>
+                            <p style="color: #ff00ff;">The AMIINU Team</p>
+                        </td>
+                    </tr>
+                    <tr style="height: 20px;">
+                        <td style="border-top: 1px solid #D9D9D9;"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <table style="margin: 0 auto;">
+                                <tr>
+                                    <td>
+                                        <a href="#" style="text-decoration: none; width: 31px; align-items: center; justify-content: center; height: 31px; display: flex; border-radius: 50%; background: #DA00FF; color: #ffffff;"><i class="fa-brands fa-facebook-f"></i></a>
+                                    </td>
+                                    <td>
+                                        <a href="#" style="text-decoration: none; width: 31px; align-items: center; justify-content: center; height: 31px; display: flex; border-radius: 50%; background: #DA00FF; color: #ffffff;"><i class="fa-brands fa-instagram"></i></a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr style="height: 20px;">
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td style="border-top: 1px solid #D9D9D9;"></td>
+                    </tr>
+                    <tr style="height: 20px;">
+                        <td></td>
+                    </tr>
+                    <!-- Footer Section -->
+                    <tr style="text-align: center;">
+                        <td><p style="margin: 10px 0;">©2025 AMIINU. All rights reserved.</p></td>
+                    </tr>
+                    <tr style="height: 20px;">
+                        <td></td>
+                    </tr>
+                    <tr style="text-align: center;">
+                        <td><p>You are receiving this mail because you registered to join the AMIINU platform as a user or a creator. This also shows that you agree to our Terms of use and Privacy Policies. If you no longer want to receive mails from us, click the unsubscribe link below to unsubscribe.</p></td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: center; font-size: 14px; color: #777;">
+                            <p style="margin: 0;">
+                                <a href="#" style="color: #777; text-decoration: none; margin: 0 5px;">Privacy Policy</a> |
+                                <a href="#" style="color: #777; text-decoration: none; margin: 0 5px;">Terms of Service</a> |
+                                <a href="#" style="color: #777; text-decoration: none; margin: 0 5px;">Help Center</a> |
+                                <a href="#" style="color: #777; text-decoration: none; margin: 0 5px;">Unsubscribe</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
