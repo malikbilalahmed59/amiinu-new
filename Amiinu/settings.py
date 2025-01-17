@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'accounts.apps.AccountsConfig',
+    'suggestions.apps.SuggestionsConfig',
 
 ]
 
@@ -38,6 +39,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'suggestions.middleware.APILoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'Amiinu.urls'
@@ -169,3 +171,5 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'malikbilalahmed59@gmail.com'
 EMAIL_HOST_PASSWORD = 'dgaodrjdwwgnztpa'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+GOOGLE_PLACES_API_KEY = "AIzaSyB12zNWTko9hLLR6BlTl8n8NTNZ_vl_yKQ"

@@ -15,6 +15,8 @@ class CustomUser(AbstractUser):
         choices=ROLE_CHOICES,
         default='normal'
     )
+    name = models.CharField(max_length=256)
+    country=models.CharField(max_length=100)
     is_active = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.username} ({self.role})"

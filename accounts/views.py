@@ -162,7 +162,7 @@ class SignupView(APIView):
                 email = EmailMultiAlternatives(subject, html_message, from_email, recipient_list)
                 email.attach_alternative(html_message, "text/html")
                 email.send()
-                return Response({'message': 'User created. Please verify your email.'}, status=status.HTTP_201_CREATED)
+                return Response({'message': 'Your account has been created successfully! Please check your email to verify your account.'}, status=status.HTTP_201_CREATED)
             except Exception as e:
                 return Response({'message': f'Failed to send email: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

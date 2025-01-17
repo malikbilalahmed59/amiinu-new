@@ -5,9 +5,7 @@ from .serializers import ShipmentSerializer
 
 
 class ShipmentViewSet(ModelViewSet):
-    """
-    A ViewSet for managing shipments.
-    """
+
     queryset = Shipment.objects.all()
     serializer_class = ShipmentSerializer
     permission_classes = [IsAuthenticated]
