@@ -126,7 +126,7 @@ class LoginView(APIView):
             refresh['role'] = user.role
 
             return Response({
-                'message': 'Login successful.',
+                'message': 'Authentication successful! Welcome!',
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             }, status=status.HTTP_200_OK)
