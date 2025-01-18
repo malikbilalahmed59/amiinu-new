@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'accounts.apps.AccountsConfig',
     'suggestions.apps.SuggestionsConfig',
+    'sourcing.apps.SourcingConfig',
 
 ]
 
