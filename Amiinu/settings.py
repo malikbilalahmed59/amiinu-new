@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'accounts.apps.AccountsConfig',
+    'shipments.apps.ShipmentsConfig',
     'suggestions.apps.SuggestionsConfig',
     'sourcing.apps.SourcingConfig',
 
@@ -80,8 +81,15 @@ AUTHENTICATION_BACKENDS = [
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'defaultdb',  # Database name
+        'USER': 'avnadmin',   # Database user
+        'PASSWORD': 'AVNS_Eg0jzyfKY6MTNGFLI4a',  # Database password
+        'HOST': 'pg-24bde661-malikbilalahmed-e15c.l.aivencloud.com',  # Database host
+        'PORT': '15371',      # Database port
+        'OPTIONS': {
+            'sslmode': 'require',  # Ensures a secure SSL connection
+        },
     }
 }
 
