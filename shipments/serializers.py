@@ -9,7 +9,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ContainerSerializer(serializers.ModelSerializer):
-    products = ProductSerializer(many=True)
+    products = ProductSerializer(many=True, required=True)  # Ensure products is required during validation
 
     class Meta:
         model = Container
@@ -53,6 +53,38 @@ class ContainerSerializer(serializers.ModelSerializer):
                         "For LCL or air shipments, 'container_type' should not be specified."
                     )
         return attrs
+
+    def create(self, validated_data):
+        """
+        Handles creating a container and its associated products.
+        """
+        products_data = validated_data.pop('products')  # Extract products data from validated data
+        container = Container.objects.create(**validated_data)
+
+        # Create products associated with this container
+        for product_data in products_data:
+            Product.objects.create(container=container, **product_data)
+
+        return container
+
+    def update(self, instance, validated_data):
+        """
+        Handles updating a container and its associated products.
+        """
+        products_data = validated_data.pop('products', [])
+
+        # Update the container instance
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update products associated with this container
+        if products_data:
+            instance.products.all().delete()  # Clear existing products
+            for product_data in products_data:
+                Product.objects.create(container=instance, **product_data)
+
+        return instance
 
 
 class ShipmentSerializer(serializers.ModelSerializer):
