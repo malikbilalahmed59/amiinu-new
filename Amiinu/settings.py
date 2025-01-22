@@ -78,25 +78,25 @@ AUTHENTICATION_BACKENDS = [
 ]
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'defaultdb',  # Database name
-#         'USER': 'avnadmin',   # Database user
-#         'PASSWORD': 'AVNS_Eg0jzyfKY6MTNGFLI4a',  # Database password
-#         'HOST': 'pg-24bde661-malikbilalahmed-e15c.l.aivencloud.com',  # Database host
-#         'PORT': '15371',      # Database port
-#         'OPTIONS': {
-#             'sslmode': 'require',  # Ensures a secure SSL connection
-#         },
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'defaultdb',  # Database name
+        'USER': 'avnadmin',   # Database user
+        'PASSWORD': 'AVNS_Eg0jzyfKY6MTNGFLI4a',  # Database password
+        'HOST': 'pg-24bde661-malikbilalahmed-e15c.l.aivencloud.com',  # Database host
+        'PORT': '15371',      # Database port
+        'OPTIONS': {
+            'sslmode': 'require',  # Ensures a secure SSL connection
+        },
+    }
+}
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
