@@ -9,7 +9,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ContainerSerializer(serializers.ModelSerializer):
-    products = ProductSerializer(many=True, required=True)  # Ensure products is required during validation
+    products = ProductSerializer(many=True, required=True)  # Ensure products are required
 
     class Meta:
         model = Container
@@ -18,77 +18,38 @@ class ContainerSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        """
-        Validates container_type and package_type based on shipment type and international shipping type.
-        """
         shipment = self.context.get('shipment')  # Pass shipment instance via serializer context
 
-        # Allow initial validation without a shipment instance
-        if not shipment:
-            return attrs
+        if shipment:
+            shipment_type = shipment.shipment_type
+            international_shipping_type = shipment.international_shipping_type
 
-        shipment_type = shipment.shipment_type
-        international_shipping_type = shipment.international_shipping_type
+            container_type = attrs.get('container_type')
+            package_type = attrs.get('package_type')
 
-        container_type = attrs.get('container_type')
-        package_type = attrs.get('package_type')
-
-        if shipment_type == 'international':
-            if international_shipping_type in ['fcl_sea']:
-                if not container_type:
+            if shipment_type == 'international':
+                if international_shipping_type == 'fcl_sea' and not container_type:
                     raise serializers.ValidationError(
                         "For FCL shipments, 'container_type' must be specified and 'package_type' must be empty."
                     )
-                if package_type:
-                    raise serializers.ValidationError(
-                        "For FCL shipments, 'package_type' should not be specified."
-                    )
-            elif international_shipping_type in ['lcl_sea', 'economy_air', 'express_air']:
-                if not package_type:
+                elif international_shipping_type in ['lcl_sea', 'economy_air', 'express_air'] and not package_type:
                     raise serializers.ValidationError(
                         "For LCL or air shipments, 'package_type' must be specified and 'container_type' must be empty."
-                    )
-                if container_type:
-                    raise serializers.ValidationError(
-                        "For LCL or air shipments, 'container_type' should not be specified."
                     )
         return attrs
 
     def create(self, validated_data):
-        """
-        Handles creating a container and its associated products.
-        """
-        products_data = validated_data.pop('products')  # Extract products data from validated data
+        products_data = validated_data.pop('products', [])
         container = Container.objects.create(**validated_data)
 
-        # Create products associated with this container
         for product_data in products_data:
             Product.objects.create(container=container, **product_data)
 
         return container
 
-    def update(self, instance, validated_data):
-        """
-        Handles updating a container and its associated products.
-        """
-        products_data = validated_data.pop('products', [])
-
-        # Update the container instance
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        # Update products associated with this container
-        if products_data:
-            instance.products.all().delete()  # Clear existing products
-            for product_data in products_data:
-                Product.objects.create(container=instance, **product_data)
-
-        return instance
-
 
 class ShipmentSerializer(serializers.ModelSerializer):
-    containers = ContainerSerializer(many=True)
+    containers = ContainerSerializer(many=True, required=True)  # Ensure containers are required
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
@@ -101,48 +62,23 @@ class ShipmentSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        """
-        Perform shipment-level validation, including containers.
-        """
         shipment_type = attrs.get('shipment_type')
         international_shipping_type = attrs.get('international_shipping_type')
         containers = attrs.get('containers', [])
 
-        # Validate containers against shipment type and international shipping type
         for container_data in containers:
-            container_type = container_data.get('container_type')
-            package_type = container_data.get('package_type')
+            serializer = ContainerSerializer(data=container_data, context={'shipment': self.instance})
+            serializer.is_valid(raise_exception=True)
 
-            if shipment_type == 'international':
-                if international_shipping_type in ['fcl_sea']:
-                    if not container_type:
-                        raise serializers.ValidationError(
-                            "For FCL shipments, 'container_type' must be specified and 'package_type' must be empty."
-                        )
-                    if package_type:
-                        raise serializers.ValidationError(
-                            "For FCL shipments, 'package_type' should not be specified."
-                        )
-                elif international_shipping_type in ['lcl_sea', 'economy_air', 'express_air']:
-                    if not package_type:
-                        raise serializers.ValidationError(
-                            "For LCL or air shipments, 'package_type' must be specified and 'container_type' must be empty."
-                        )
-                    if container_type:
-                        raise serializers.ValidationError(
-                            "For LCL or air shipments, 'container_type' should not be specified."
-                        )
         return attrs
 
     def create(self, validated_data):
-        containers_data = validated_data.pop('containers')
+        containers_data = validated_data.pop('containers', [])
         shipment = Shipment.objects.create(**validated_data)
 
         for container_data in containers_data:
-            products_data = container_data.pop('products')
-            serializer = ContainerSerializer(data=container_data, context={'shipment': shipment})
-            serializer.is_valid(raise_exception=True)
-            container = serializer.save(shipment=shipment)
+            products_data = container_data.pop('products', [])
+            container = Container.objects.create(shipment=shipment, **container_data)
 
             for product_data in products_data:
                 Product.objects.create(container=container, **product_data)
@@ -153,12 +89,11 @@ class ShipmentSerializer(serializers.ModelSerializer):
         containers_data = validated_data.pop('containers', [])
         instance = super().update(instance, validated_data)
 
-        # Handle containers and validation
+        # Update containers
+        instance.containers.all().delete()  # Clear existing containers and products
         for container_data in containers_data:
             products_data = container_data.pop('products', [])
-            serializer = ContainerSerializer(data=container_data, context={'shipment': instance})
-            serializer.is_valid(raise_exception=True)
-            container = serializer.save(shipment=instance)
+            container = Container.objects.create(shipment=instance, **container_data)
 
             for product_data in products_data:
                 Product.objects.create(container=container, **product_data)

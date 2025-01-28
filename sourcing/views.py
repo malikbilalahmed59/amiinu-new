@@ -40,11 +40,23 @@ class SourcingRequestViewSet(ModelViewSet):
 
     def handle_exception(self, exc):
         """
-        Override to standardize error response format.
+        Override to standardize error response format and include field names.
         """
         response = super().handle_exception(exc)
-        if isinstance(response.data, dict):
-            response.data = {"message": response.data.get("detail", str(exc))}
+        if response.status_code == status.HTTP_400_BAD_REQUEST:
+            if isinstance(response.data, dict):
+                # Extract error messages and include field names in the response
+                errors = {}
+                for field, error_list in response.data.items():
+                    errors[field] = " ".join([str(error) for error in error_list])
+                response.data = {"message": errors}
+            else:
+                response.data = {"message": "Invalid input."}
+        elif response.status_code == status.HTTP_404_NOT_FOUND:
+            response.data = {"message": "The requested resource was not found."}
+        elif response.status_code == status.HTTP_403_FORBIDDEN:
+            response.data = {"message": "You do not have permission to perform this action."}
         else:
             response.data = {"message": "An unexpected error occurred. Please try again."}
         return response
+
