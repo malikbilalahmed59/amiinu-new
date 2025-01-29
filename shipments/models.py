@@ -16,18 +16,9 @@ INTERNATIONAL_SHIPPING_TYPES = [
 ]
 
 CONTAINER_TYPES = [
-    ('20FR', "20' FLAT RACK CNTR(S)"),
-    ('20OT', "20' OPEN TOP CNTR(S)"),
-    ('20PL', "20' PLATFORM(S)"),
-    ('20RE', "20' REEFER(S)"),
-    ('40HR', "40' HIGH CUBE REEFER(S)"),
-    ('40FR', "40' FLAT RACK CNTR(S)"),
-    ('40RE', "40' REEFER(S)"),
-    ('40OT', "40' OPEN TOP CNTR(S)"),
-    ('40PL', "40' PLATFORM(S)"),
-    ('40ST', "40' STANDARD CNTR(S)"),
-    ('40HC', "40' HIGH CUBE CNTR(S)"),
-    ('20ST', "20' STANDARD CNTR(S)"),
+    ('20ST', "20' DRY STANDARD "),
+    ('40ST', "40' DRY STANDARD "),
+
 ]
 
 PACKAGE_TYPES = [
@@ -59,10 +50,8 @@ class Shipment(models.Model):
     recipient_name = models.CharField(max_length=255)
     recipient_email = models.EmailField()
     recipient_phone = models.CharField(max_length=20)
-    receiver_name = models.CharField(max_length=255)
-    receiver_email = models.EmailField()
-    receiver_phone = models.CharField(max_length=20)
-    receiver_vat_no = models.CharField(max_length=50, null=True, blank=True, help_text="Receiver's VAT number")
+    sender_tax_vat = models.CharField(max_length=50, blank=True, null=True)
+    sender_email = models.EmailField()
     delivery_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('paid', 'Paid')], default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -87,15 +76,7 @@ class Container(models.Model):
 class Product(models.Model):
     container = models.ForeignKey(Container, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
-    quantity = models.PositiveIntegerField()
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    weight_per_unit = models.FloatField(help_text="Weight per unit in kg")
     hs_code = models.CharField(max_length=10, help_text="Harmonized System Code for customs classification")
 
-    def total_price(self):
-        return self.quantity * self.unit_price
 
-    def __str__(self):
-        return f"{self.name} (Qty: {self.quantity}) in Container {self.container.id}"
 

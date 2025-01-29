@@ -5,7 +5,7 @@ from .models import Shipment, Container, Product
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'quantity', 'unit_price', 'weight_per_unit', 'hs_code']
+        fields = ['id', 'name', 'hs_code']
 
 
 class ContainerSerializer(serializers.ModelSerializer):
@@ -57,8 +57,7 @@ class ShipmentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'shipment_type', 'international_shipping_type', 'incoterm', 'special_instructions',
             'insure_shipment', 'insurance_value', 'pickup_address', 'delivery_address', 'pickup_date',
-            'recipient_name', 'recipient_email', 'recipient_phone', 'receiver_name', 'receiver_email',
-            'receiver_phone', 'receiver_vat_no', 'delivery_price', 'payment_status', 'containers', 'user'
+            'recipient_name', 'recipient_email', 'recipient_phone','sender_tax_vat','sender_email', 'delivery_price', 'payment_status', 'containers', 'user'
         ]
 
     def validate(self, attrs):
