@@ -14,7 +14,7 @@ class ContainerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Container
         fields = [
-            'id', 'container_type', 'package_type', 'length', 'width', 'height', 'weight', 'quantity', 'products'
+            'id', 'container_type', 'package_type', 'length', 'width', 'height', 'weight', 'quantity', 'products','value'
         ]
 
     def validate(self, attrs):

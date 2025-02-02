@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import APIUsage
+# from .models import APIUsage
 
 @api_view(['GET'])
 def address_suggestions(request):
@@ -44,29 +44,29 @@ def address_suggestions(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.db import IntegrityError
-
-@api_view(['POST'])
-def reset_usage_view(request):
-    try:
-        # Ensure only one entry is updated or created
-        api_usage, created = APIUsage.objects.get_or_create(
-            defaults={"request_count": 0}
-        )
-        if not created:
-            # If the record already exists, update the `request_count`
-            api_usage.request_count = 0
-            api_usage.save()
-
-        return Response(
-            {"message": "API usage successfully reset."},
-            status=200
-        )
-    except IntegrityError as e:
-        return Response(
-            {"error": "Error resetting API usage: " + str(e)},
-            status=500
-        )
+# from rest_framework.decorators import api_view
+# from rest_framework.response import Response
+# from django.db import IntegrityError
+#
+# @api_view(['POST'])
+# def reset_usage_view(request):
+#     try:
+#         # Ensure only one entry is updated or created
+#         api_usage, created = APIUsage.objects.get_or_create(
+#             defaults={"request_count": 0}
+#         )
+#         if not created:
+#             # If the record already exists, update the `request_count`
+#             api_usage.request_count = 0
+#             api_usage.save()
+#
+#         return Response(
+#             {"message": "API usage successfully reset."},
+#             status=200
+#         )
+#     except IntegrityError as e:
+#         return Response(
+#             {"error": "Error resetting API usage: " + str(e)},
+#             status=500
+#         )
 

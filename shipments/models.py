@@ -77,6 +77,7 @@ class Product(models.Model):
     container = models.ForeignKey(Container, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=255)
     hs_code = models.CharField(max_length=10, help_text="Harmonized System Code for customs classification")
+    value=models.FloatField()
 
 
 
