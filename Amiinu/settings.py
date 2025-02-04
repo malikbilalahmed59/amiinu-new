@@ -183,7 +183,7 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
 EMAIL_HOST_USER = 'malikbilalahmed59@gmail.com'
-EMAIL_HOST_PASSWORD = 'dgaodrjdwwgnztpa'
+EMAIL_HOST_PASSWORD = 'hfeqhsyxroulyxqe'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 GOOGLE_PLACES_API_KEY = "AIzaSyAwx4YgbAjcpvUuZzRJjH5brsri2nOnzAs"
