@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'shipments.apps.ShipmentsConfig',
     'suggestions.apps.SuggestionsConfig',
     'sourcing.apps.SourcingConfig',
+    'warehouse.apps.WarehouseConfig',
 
 ]
 

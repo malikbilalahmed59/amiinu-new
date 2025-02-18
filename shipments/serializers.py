@@ -9,7 +9,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ContainerSerializer(serializers.ModelSerializer):
-    products = ProductSerializer(many=True, required=True)  # Ensure products are required
+    products = ProductSerializer(many=True, required=True)
 
     class Meta:
         model = Container
@@ -18,7 +18,7 @@ class ContainerSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        shipment = self.context.get('shipment')  # Pass shipment instance via serializer context
+        shipment = self.context.get('shipment')
 
         if shipment:
             shipment_type = shipment.shipment_type
@@ -49,7 +49,7 @@ class ContainerSerializer(serializers.ModelSerializer):
 
 
 class ShipmentSerializer(serializers.ModelSerializer):
-    containers = ContainerSerializer(many=True, required=True)  # Ensure containers are required
+    containers = ContainerSerializer(many=True, required=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
@@ -89,7 +89,7 @@ class ShipmentSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
 
         # Update containers
-        instance.containers.all().delete()  # Clear existing containers and products
+        instance.containers.all().delete()
         for container_data in containers_data:
             products_data = container_data.pop('products', [])
             container = Container.objects.create(shipment=instance, **container_data)
