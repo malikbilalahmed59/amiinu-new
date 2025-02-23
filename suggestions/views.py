@@ -13,20 +13,22 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-# Use a synchronous client instead of an async client
+# Use persistent connection pooling for speed
 client = httpx.Client(
-    timeout=5.0,
-    headers={"Accept-Encoding": "gzip, deflate"},
+    timeout=5.0,  # Fast timeout
+    headers={"Accept-Encoding": "gzip, deflate"},  # Request compressed responses
 )
-
 
 @api_view(['GET'])
 def address_suggestions(request):
-    """Fetch address suggestions from Google Places API (Synchronous Version)."""
+    """Fetch optimized address suggestions from Google Places API."""
 
-    query = request.GET.get('query', '')
+    query = request.GET.get('query', '').strip()
     if not query:
-        return Response({"error": "Query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Query parameter is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     session_token = request.GET.get('sessiontoken', str(uuid.uuid4()))
     api_key = settings.GOOGLE_PLACES_API_KEY
@@ -41,25 +43,62 @@ def address_suggestions(request):
     }
 
     try:
-        # Make the synchronous request
+        # Make the request
         response = client.get(endpoint, params=params)
         response.raise_for_status()
         data = response.json()
 
-        if data.get("status") != "OK":
-            return Response({"error": data.get("error_message", "Unknown error.")}, status=status.HTTP_400_BAD_REQUEST)
+        # Handle Google API response status
+        google_status = data.get("status", "")
 
-        suggestions = [
-            {
-                "description": place["description"],
-                "place_id": place["place_id"]
-            } for place in data.get("predictions", [])
-        ]
+        if google_status == "OK":
+            suggestions = [
+                {"description": place["description"], "place_id": place["place_id"]}
+                for place in data.get("predictions", [])
+            ]
+            return Response({"suggestions": suggestions}, status=status.HTTP_200_OK)
 
-        return Response({"suggestions": suggestions}, status=status.HTTP_200_OK)
+        elif google_status == "ZERO_RESULTS":
+            return Response(
+                {"error": "No results found for the given query."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-    except httpx.RequestError as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        elif google_status == "OVER_QUERY_LIMIT":
+            return Response(
+                {"error": "Google API quota exceeded. Please try again later."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        elif google_status == "REQUEST_DENIED":
+            return Response(
+                {"error": "Google API request denied. Check API key & billing."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        elif google_status == "INVALID_REQUEST":
+            return Response(
+                {"error": "Invalid request. Missing or incorrect parameters."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        else:
+            return Response(
+                {"error": f"Unexpected Google API error: {google_status}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    except httpx.RequestError:
+        return Response(
+            {"error": "Failed to connect to Google API."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    except Exception:
+        return Response(
+            {"error": "An unexpected error occurred."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 # from rest_framework.decorators import api_view
 # from rest_framework.response import Response
