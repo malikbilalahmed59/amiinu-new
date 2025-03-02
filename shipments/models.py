@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-
+import uuid
+from django.db import models
+from django.contrib.auth.models import User
+from datetime import datetime
 User = get_user_model()
 
 SHIPMENT_TYPES = [
@@ -57,9 +60,20 @@ class Shipment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"Shipment {self.id} ({self.shipment_type})"
 
+    shipment_number = models.CharField(max_length=20, unique=True, editable=False,null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('in_transit', 'In Transit'), ('delivered', 'Delivered')], default='pending')
+    estimated_delivery_date = models.DateTimeField(null=True, blank=True)
+    tracking_company = models.CharField(max_length=100, null=True, blank=True)
+    tracking_number = models.CharField(max_length=50, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.shipment_number:
+            self.shipment_number = f"SHIP-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Shipment {self.shipment_number} ({self.shipment_type})"
 class Container(models.Model):
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name='containers')
     container_type = models.CharField(max_length=10, choices=CONTAINER_TYPES, null=True, blank=True)

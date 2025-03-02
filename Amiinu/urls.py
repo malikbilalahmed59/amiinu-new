@@ -11,6 +11,8 @@ urlpatterns = [
     path('api/',include('shipments.urls')),
     path('api/warehouse/',include('warehouse.urls')),
 
+    path('api/management',include('managment.urls')),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -51,13 +51,18 @@ class ContainerSerializer(serializers.ModelSerializer):
 class ShipmentSerializer(serializers.ModelSerializer):
     containers = ContainerSerializer(many=True, required=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    shipment_number = serializers.ReadOnlyField()
+    status = serializers.ReadOnlyField()
+    estimated_delivery_date = serializers.ReadOnlyField()
 
     class Meta:
         model = Shipment
         fields = [
-            'id', 'shipment_type', 'international_shipping_type', 'incoterm', 'special_instructions',
-            'insure_shipment', 'insurance_value', 'pickup_address', 'delivery_address', 'pickup_date',
-            'recipient_name', 'recipient_email', 'recipient_phone','sender_tax_vat','sender_email', 'delivery_price', 'payment_status', 'containers', 'user'
+            'id','user', 'shipment_number', 'shipment_type', 'international_shipping_type', 'incoterm',
+            'special_instructions', 'insure_shipment', 'insurance_value', 'pickup_address', 'delivery_address',
+            'pickup_date', 'recipient_name', 'recipient_email', 'recipient_phone', 'sender_tax_vat',
+            'sender_email', 'delivery_price', 'payment_status', 'status', 'estimated_delivery_date'
+            , 'created_at', 'updated_at', 'containers'
         ]
 
     def validate(self, attrs):

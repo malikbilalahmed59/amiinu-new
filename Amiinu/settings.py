@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'suggestions.apps.SuggestionsConfig',
     'sourcing.apps.SourcingConfig',
     'warehouse.apps.WarehouseConfig',
+    'managment.apps.ManagmentConfig'
 
 ]
 
