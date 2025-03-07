@@ -29,7 +29,7 @@ class InboundShipment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 class Product(models.Model):
-    inbound_shipments = models.ForeignKey(InboundShipment, related_name='products', on_delete=models.CASCADE)  # ✅ FIXED
+    inbound_shipments = models.ForeignKey(InboundShipment, related_name='products', on_delete=models.CASCADE)  # ✅ FIXED FIELD NAME
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=255)
     sku = models.CharField(max_length=100, unique=True)
@@ -40,9 +40,16 @@ class Product(models.Model):
         return self.name
 
 class Variation(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variations',null=True, blank=True)  # ✅ ENSURE `product` IS ASSIGNED
+    product = models.ForeignKey(Product, on_delete=models.CASCADE,null=True,blank=True, related_name='variations')
     type = models.CharField(max_length=100, help_text="Variation type (e.g., color, size)")
-    options = models.JSONField(help_text="Options and quantities as {'name': quantity, 'red': 10}")
 
     def __str__(self):
         return f"{self.product.name} - {self.type}"
+
+class VariationOption(models.Model):
+    variation = models.ForeignKey(Variation,null=True,blank=True, on_delete=models.CASCADE, related_name='options')  # ✅ RELATES TO VARIATION
+    name = models.CharField(max_length=100,null=True,blank=True, help_text="Option name (e.g., Red, Blue, Small)")
+    quantity = models.PositiveIntegerField(default=0,null=True,blank=True)
+
+    def __str__(self):
+        return f"{self.variation.product.name} - {self.variation.type}: {self.name} ({self.quantity})"

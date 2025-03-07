@@ -3,29 +3,52 @@ from .models import Warehouse
 from rest_framework import serializers
 from .models import Variation, Product, InboundShipment
 
+from rest_framework import serializers
+from .models import InboundShipment, Product, Variation, VariationOption
+
+
+class VariationOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VariationOption
+        fields = '__all__'  # ✅ Includes 'name' & 'quantity'
+
+
 class VariationSerializer(serializers.ModelSerializer):
+    options = VariationOptionSerializer(many=True)  # ✅ NESTED OPTIONS
+
     class Meta:
         model = Variation
-        fields = '__all__'
+        fields = ['id', 'product', 'type', 'options']
+
+    def create(self, validated_data):
+        options_data = validated_data.pop('options', [])  # ✅ Extract options
+        variation = Variation.objects.create(**validated_data)
+
+        for option_data in options_data:
+            VariationOption.objects.create(variation=variation, **option_data)  # ✅ Create options
+
+        return variation
+
+
 class ProductSerializer(serializers.ModelSerializer):
-    variations = VariationSerializer(many=True, required=False)  # ✅ Nested Variations
+    variations = VariationSerializer(many=True, required=False)  # ✅ NESTED VARIATIONS
 
     class Meta:
         model = Product
-        exclude = ['warehouse', 'inbound_shipments']  # ✅ Exclude because we assign in InboundShipmentSerializer
+        exclude = ['warehouse', 'inbound_shipments']  # ✅ Warehouse assigned in InboundShipmentSerializer
 
     def create(self, validated_data):
         variations_data = validated_data.pop('variations', [])  # ✅ Extract variations
         product = Product.objects.create(**validated_data)  # ✅ Create Product First
 
         for variation_data in variations_data:
-            Variation.objects.create(product=product, **variation_data)  # ✅ Assign product
+            VariationSerializer().create({**variation_data, 'product': product})  # ✅ Assign product
 
         return product
 
 
 class InboundShipmentSerializer(serializers.ModelSerializer):
-    products = ProductSerializer(many=True)  # ✅ Use ProductSerializer to handle nested variations
+    products = ProductSerializer(many=True)  # ✅ NESTED PRODUCTS
 
     class Meta:
         model = InboundShipment
@@ -36,15 +59,14 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
         products_data = validated_data.pop('products', [])  # ✅ Extract products
         warehouse = validated_data.get('warehouse')  # ✅ Get warehouse
 
-        # ✅ Create the inbound shipment
-        inbound_shipment = InboundShipment.objects.create(**validated_data)
+        inbound_shipments = InboundShipment.objects.create(**validated_data)  # ✅ Create shipment
 
         for product_data in products_data:
-            product_data['inbound_shipments'] = inbound_shipment  # ✅ Assign InboundShipment
-            product_data['warehouse'] = warehouse  # ✅ Assign Warehouse
-            ProductSerializer().create(product_data)  # ✅ Let ProductSerializer handle variations
+            product_data['inbound_shipments'] = inbound_shipments  # ✅ Assign shipment
+            product_data['warehouse'] = warehouse  # ✅ Assign warehouse
+            ProductSerializer().create(product_data)  # ✅ Delegate to ProductSerializer
 
-        return inbound_shipment
+        return inbound_shipments
 
 
 class WarehouseSerializer(serializers.ModelSerializer):
