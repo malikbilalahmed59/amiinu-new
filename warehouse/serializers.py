@@ -125,42 +125,5 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
 
         return outbound_shipment
 
-from rest_framework import viewsets, permissions
-from rest_framework.response import Response
-from .models import Product
-from .serializers import ProductSerializer
 
-class InventoryViewSet(viewsets.ModelViewSet):
-    """API for managing inventory (products) by user."""
-    serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        """Filter products based on the user and optionally by warehouse."""
-        user = self.request.user
-        queryset = Product.objects.filter(warehouse__inbound_shipments__user=user).distinct()
-
-        warehouse_id = self.request.query_params.get('warehouse_id')
-        if warehouse_id:
-            queryset = queryset.filter(warehouse_id=warehouse_id)
-
-        return queryset
-
-    def perform_create(self, serializer):
-        """Ensure user is linked to the product via inbound shipments."""
-        product = serializer.save()
-        if not product.inbound_shipments.filter(user=self.request.user).exists():
-            return Response({"error": "You are not authorized to add this product"}, status=403)
-
-    def perform_update(self, serializer):
-        """Allow updates only if the user has access."""
-        product = self.get_object()
-        if not product.inbound_shipments.filter(user=self.request.user).exists():
-            return Response({"error": "You are not authorized to update this product"}, status=403)
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        """Allow deletion only if the user has access."""
-        if not instance.inbound_shipments.filter(user=self.request.user).exists():
-            return Response({"error": "You are not authorized to delete this product"}, status=403)
-        instance.delete()
