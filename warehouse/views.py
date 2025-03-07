@@ -12,6 +12,22 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Product, Warehouse
 from .serializers import ProductSerializer
+from rest_framework import viewsets, permissions
+from rest_framework.response import Response
+from .models import OutboundShipment
+from .serializers import OutboundShipmentSerializer
+
+class OutboundShipmentViewSet(viewsets.ModelViewSet):
+    queryset = OutboundShipment.objects.all()
+    serializer_class = OutboundShipmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)  # Assign logged-in user
+
+    def get_queryset(self):
+        # Allow users to only see shipments they created
+        return OutboundShipment.objects.filter(user=self.request.user)
 
 class UserProductsByWarehouseView(APIView):
     permission_classes = [IsAuthenticated]
@@ -39,4 +55,4 @@ class InboundShipmentViewSet(viewsets.ModelViewSet):
 class WarehouseViewSet(viewsets.ModelViewSet):
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseSerializer
-    permission_classes = [IsAuthenticated, IsWarehouseOrSuperUser]
+    permission_classes = [IsAuthenticated]

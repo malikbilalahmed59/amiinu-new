@@ -53,3 +53,36 @@ class VariationOption(models.Model):
 
     def __str__(self):
         return f"{self.variation.product.name} - {self.variation.type}: {self.name} ({self.quantity})"
+
+
+class OutboundShipment(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('shipped', 'Shipped'),
+        ('delivered', 'Delivered'),
+        ('cancelled', 'Cancelled'),
+    ]
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='outbound_shipments')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='outbound_shipments')
+    customer_name = models.CharField(max_length=255)
+    customer_address = models.JSONField(help_text="Address as {'label': str, 'value': str}")
+
+    tracking_number = models.CharField(max_length=255, unique=True)
+    shipment_method = models.CharField(max_length=255, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    estimated_delivery = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Shipment {self.tracking_number} to {self.customer_name}"
+
+# ✅ Outbound Shipment Product Selection
+class OutboundShipmentItem(models.Model):
+    outbound_shipment = models.ForeignKey(OutboundShipment, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='outbound_items')
+    variation_option = models.ForeignKey(VariationOption, on_delete=models.CASCADE, related_name='outbound_items', null=True, blank=True)
+    quantity = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"{self.product.name} ({self.variation_option.name if self.variation_option else 'No Variation'}) - {self.quantity} pcs"
