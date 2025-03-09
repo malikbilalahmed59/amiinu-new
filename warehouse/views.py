@@ -2,7 +2,6 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from .models import Warehouse
 from .serializers import WarehouseSerializer
-from .permissions import IsWarehouseOrSuperUser
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from .models import InboundShipment, Product
@@ -20,6 +19,69 @@ from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from .models import Product
 from .serializers import ProductSerializer
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from .models import InboundShipment, OutboundShipment
+from .serializers import InboundShipmentSerializer, OutboundShipmentSerializer
+
+from rest_framework import viewsets, status, permissions
+from rest_framework.response import Response
+from .models import InboundShipment, OutboundShipment
+from .serializers import InboundShipmentSerializer, OutboundShipmentSerializer
+
+
+class InboundShipmentViewSet(viewsets.ModelViewSet):
+    serializer_class = InboundShipmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Return only shipments for the authenticated user
+        return InboundShipment.objects.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
+        # The user will be set automatically in the serializer
+        serializer.save()
+
+    # Ensure the serializer always has access to the request
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        return context
+
+
+class OutboundShipmentViewSet(viewsets.ModelViewSet):
+    serializer_class = OutboundShipmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Return only shipments for the authenticated user
+        return OutboundShipment.objects.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
+        # The user will be set automatically in the serializer
+        serializer.save()
+
+    # Ensure the serializer always has access to the request
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        return context
+
+
+
+
 
 class InventoryViewSet(viewsets.ModelViewSet):
     """API for managing inventory (products) by user."""
@@ -60,17 +122,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
 
 
 
-class OutboundShipmentViewSet(viewsets.ModelViewSet):
-    queryset = OutboundShipment.objects.all()
-    serializer_class = OutboundShipmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)  # Assign logged-in user
-
-    def get_queryset(self):
-        # Allow users to only see shipments they created
-        return OutboundShipment.objects.filter(user=self.request.user)
 
 class UserProductsByWarehouseView(APIView):
     permission_classes = [IsAuthenticated]
@@ -85,17 +137,6 @@ class UserProductsByWarehouseView(APIView):
             return Response({"error": "Not authorized"}, status=403)
         except Warehouse.DoesNotExist:
             return Response({"error": "Warehouse not found"}, status=404)
-
-class InboundShipmentViewSet(viewsets.ModelViewSet):
-    queryset = InboundShipment.objects.all()
-    serializer_class = InboundShipmentSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)  # No need to modify warehouse handling
-
-
-
 
 
 
