@@ -2,86 +2,146 @@ from rest_framework import serializers
 from shipments.models import Shipment, Container, Product
 from shipments.serializers import ContainerSerializer  # Reuse existing container serializer
 from rest_framework import serializers
-from warehouse.models import OutboundShipment, OutboundShipmentItem, VariationOption
-from warehouse.serializers import OutboundShipmentItemSerializer
+from warehouse.models import InboundShipment, OutboundShipment, OutboundShipmentItem
+from warehouse.serializers import ProductSerializer, OutboundShipmentItemSerializer
 from rest_framework import serializers
-from warehouse.models import InboundShipment, OutboundShipment, OutboundShipmentItem, VariationOption
-from warehouse.serializers import ProductSerializer, OutboundShipmentItemSerializer  # ✅ Reusing existing serializers
 
 
-class AdminInboundShipmentSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Admins to GET and PATCH Inbound Shipments.
-    """
+
+class InboundShipmentSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True)
 
     class Meta:
         model = InboundShipment
-        fields = ['id', 'warehouse', 'tracking_number', 'shipment_method', 'status', 'received_at', 'products']
-        read_only_fields = ['id', 'received_at']
+        fields = [
+            'id', 'warehouse', 'user', 'tracking_number', 'shipment_method',
+            'status', 'pending_at', 'in_transit_at', 'received_at',
+            'completed_at', 'cancelled_at', 'created_at', 'updated_at',
+            'products', 'status',
+        ]
+        read_only_fields = [
+            'id', 'shipment_number' ,'pending_at', 'in_transit_at', 'received_at',
+            'completed_at', 'cancelled_at', 'created_at', 'updated_at'
+        ]
+        # Remove user from required fields - we'll set it in create
+        extra_kwargs = {
+            'user': {'required': False}
+        }
 
-    def update(self, instance, validated_data):
-        """
-        Allows admin to update the inbound shipment status and other fields if needed.
-        """
-        instance.status = validated_data.get('status', instance.status)
-        instance.tracking_number = validated_data.get('tracking_number', instance.tracking_number)
-        instance.shipment_method = validated_data.get('shipment_method', instance.shipment_method)
-        instance.shipment_received_at = validated_data.get('received_at', instance.received_at)
-        instance.save()
-        return instance
+    def create(self, validated_data):
+        products_data = validated_data.pop('products', [])
+        warehouse = validated_data.get('warehouse')
+
+        # Get the user from the request context
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['user'] = request.user
+
+        inbound_shipment = InboundShipment.objects.create(**validated_data)
+
+        for product_data in products_data:
+            product_data['inbound_shipments'] = inbound_shipment
+            product_data['warehouse'] = warehouse
+            ProductSerializer().create(product_data)
+
+        return inbound_shipment
 
 
-class AdminOutboundShipmentSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Admins to GET and PATCH Outbound Shipments, including updating item quantities.
-    """
+class OutboundShipmentSerializer(serializers.ModelSerializer):
     items = OutboundShipmentItemSerializer(many=True)
+    warehouse_country = serializers.CharField(source='warehouse.country', read_only=True)
 
     class Meta:
         model = OutboundShipment
-        fields = ['id', 'warehouse', 'user', 'customer_name', 'customer_address',
-                  'tracking_number', 'shipment_method', 'status', 'estimated_delivery', 'items']
-        read_only_fields = ['id', 'user']
+        fields = [
+            'id', 'warehouse', 'warehouse_country', 'user', 'customer_name',
+            'customer_address', 'tracking_number', 'shipment_method',
+            'status', 'pending_at', 'shipped_at', 'delivered_at',
+            'cancelled_at', 'estimated_delivery', 'created_at', 'updated_at',
+            'items', 'shipment_number'
+        ]
+        read_only_fields = [
+            'id', 'pending_at', 'shipped_at',
+            'delivered_at', 'cancelled_at', 'created_at', 'updated_at'
+        ]
+        # Remove user from required fields - we'll set it in create
+        extra_kwargs = {
+            'user': {'required': False}
+        }
 
-    def update(self, instance, validated_data):
-        """
-        Allows admin to update the outbound shipment details and adjust item quantities.
-        """
+    def create(self, validated_data):
         items_data = validated_data.pop('items', [])
 
-        # ✅ Update Shipment Details
-        instance.status = validated_data.get('status', instance.status)
-        instance.tracking_number = validated_data.get('tracking_number', instance.tracking_number)
-        instance.shipment_method = validated_data.get('shipment_method', instance.shipment_method)
-        instance.estimated_delivery = validated_data.get('estimated_delivery', instance.estimated_delivery)
-        instance.save()
+        # Get the user from the request context
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['user'] = request.user
 
-        # ✅ Update Each Item in the Shipment
+        outbound_shipment = OutboundShipment.objects.create(**validated_data)
+
         for item_data in items_data:
-            item_id = item_data.get('id')
-            if not item_id:
-                continue  # Skip if no ID is provided
+            OutboundShipmentItem.objects.create(outbound_shipment=outbound_shipment, **item_data)
 
-            try:
-                item_instance = OutboundShipmentItem.objects.get(id=item_id, outbound_shipment=instance)
-            except OutboundShipmentItem.DoesNotExist:
-                continue  # Skip if item does not belong to this shipment
+        return outbound_shipment
 
-            new_quantity = item_data.get('quantity', item_instance.quantity)
-            variation_option = item_instance.variation_option
+    def update(self, instance, validated_data):
+        # Check if status is being updated from pending to shipped
+        old_status = instance.status
+        new_status = validated_data.get('status', old_status)
 
-            # ✅ Adjust stock
+        if old_status == 'pending' and new_status == 'shipped':
+            # Update shipped_at timestamp
+            from django.utils import timezone
+            validated_data['shipped_at'] = timezone.now()
+
+            # Reduce inventory for all items in this shipment
+            self._reduce_inventory_quantities(instance)
+
+        # Perform the standard update
+        return super().update(instance, validated_data)
+
+    def _reduce_inventory_quantities(self, shipment):
+        """
+        Reduce the inventory quantities when a shipment status changes from pending to shipped
+        """
+        for item in shipment.items.all():
+            # Get the variation option
+            variation_option = item.variation_option
             if variation_option:
-                stock_diff = new_quantity - item_instance.quantity
-                variation_option.quantity -= stock_diff
+                # Reduce the quantity
+                variation_option.quantity -= item.quantity
                 variation_option.save()
 
-            # ✅ Update Item
-            item_instance.quantity = new_quantity
-            item_instance.save()
 
-        return instance
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class ManagementShipmentSerializer(serializers.ModelSerializer):

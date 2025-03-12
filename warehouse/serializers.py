@@ -55,7 +55,7 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
             'products'
         ]
         read_only_fields = [
-            'id', 'status', 'pending_at', 'in_transit_at', 'received_at',
+            'id', 'shipment_number', 'status', 'pending_at', 'in_transit_at', 'received_at',
             'completed_at', 'cancelled_at', 'created_at', 'updated_at'
         ]
         # Remove user from required fields - we'll set it in create
@@ -126,7 +126,7 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
             'items'
         ]
         read_only_fields = [
-            'id', 'status', 'pending_at', 'shipped_at',
+            'id', 'shipment_number', 'status', 'pending_at', 'shipped_at',
             'delivered_at', 'cancelled_at', 'created_at', 'updated_at'
         ]
         # Remove user from required fields - we'll set it in create

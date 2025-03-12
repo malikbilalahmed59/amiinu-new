@@ -1,3 +1,6 @@
+import uuid
+from datetime import datetime
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -22,6 +25,7 @@ class InboundShipment(models.Model):
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='inbound_shipments')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='inbound_shipments')
     tracking_number = models.CharField(max_length=255, unique=True)
+    shipment_number = models.CharField(max_length=255, unique=True, blank=True)  # Added this field
     shipment_method = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
@@ -36,12 +40,12 @@ class InboundShipment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        # Check if this is an existing instance being updated
-        if self.pk:
-            # Get the previous state from the database
-            old_instance = InboundShipment.objects.get(pk=self.pk)
+        if not self.shipment_number:
+            self.shipment_number = f"IN-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
-            # If status has changed, set the corresponding timestamp
+        # Handle status timestamp fields
+        if self.pk:
+            old_instance = InboundShipment.objects.get(pk=self.pk)
             if old_instance.status != self.status:
                 now = timezone.now()
 
@@ -57,7 +61,6 @@ class InboundShipment(models.Model):
                     self.cancelled_at = now
 
         super().save(*args, **kwargs)
-
 class Product(models.Model):
     inbound_shipments = models.ForeignKey(InboundShipment, related_name='products', on_delete=models.CASCADE)  # ✅ FIXED FIELD NAME
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='products')
@@ -96,7 +99,7 @@ class OutboundShipment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='outbound_shipments')
     customer_name = models.CharField(max_length=255)
     customer_address = models.JSONField(help_text="Address as {'label': str, 'value': str}")
-
+    shipment_number = models.CharField(max_length=255, unique=True, blank=True)  # Added this field
     tracking_number = models.CharField(max_length=255, unique=True)
     shipment_method = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -112,12 +115,12 @@ class OutboundShipment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        # Check if this is an existing instance being updated
-        if self.pk:
-            # Get the previous state from the database
-            old_instance = OutboundShipment.objects.get(pk=self.pk)
 
-            # If status has changed, set the corresponding timestamp
+        if not self.shipment_number:
+            self.shipment_number = f"OUT-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        # Handle status timestamp fields
+        if self.pk:
+            old_instance = OutboundShipment.objects.get(pk=self.pk)
             if old_instance.status != self.status:
                 now = timezone.now()
 
@@ -133,7 +136,9 @@ class OutboundShipment(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Shipment {self.tracking_number} to {self.customer_name}"
+        return f"Shipment  to {self.customer_name}"
+
+
 # ✅ Outbound Shipment Product Selection
 class OutboundShipmentItem(models.Model):
     outbound_shipment = models.ForeignKey(OutboundShipment, on_delete=models.CASCADE, related_name='items')
