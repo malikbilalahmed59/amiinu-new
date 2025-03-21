@@ -5,7 +5,7 @@ from .models import Shipment, Container, Product
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'name', 'hs_code','value']
+        fields = ['id', 'name', 'hs_code','product_value','product_quantity']
 
 
 class ContainerSerializer(serializers.ModelSerializer):
