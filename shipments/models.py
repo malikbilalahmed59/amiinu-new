@@ -66,6 +66,7 @@ class Shipment(models.Model):
     estimated_delivery_date = models.DateTimeField(null=True, blank=True)
     tracking_company = models.CharField(max_length=100, null=True, blank=True)
     tracking_number = models.CharField(max_length=50, null=True, blank=True)
+    total_weight = models.FloatField(default=0.0, null=True, blank=True, help_text="Sum of all container weights * quantity in kg")
 
     def save(self, *args, **kwargs):
         if not self.shipment_number:
