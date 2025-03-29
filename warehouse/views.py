@@ -97,8 +97,9 @@ class InventoryViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_destroy(self, instance):
-        if not instance.inbound_shipments.filter(user=self.request.user).exists():
-            raise exceptions.PermissionDenied("You are not authorized to delete this product")
+        product = self.get_object()
+        if product.inbound_shipments.user != self.request.user:
+            raise exceptions.PermissionDenied("You are not authorized to update this product")
         instance.delete()
 
 
