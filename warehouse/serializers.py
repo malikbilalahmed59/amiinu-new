@@ -81,6 +81,27 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
 
         return inbound_shipment
 
+    def update(self, instance, validated_data):
+        products_data = validated_data.pop('products', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if products_data is not None:
+            # DELETE existing nested products and everything below
+            instance.products.all().delete()
+
+            warehouse = instance.warehouse
+            for product_data in products_data:
+                product_data['inbound_shipments'] = instance
+                product_data['warehouse'] = warehouse
+                ProductSerializer().create(product_data)
+
+        return instance
+
+
+
 
 class WarehouseSerializer(serializers.ModelSerializer):
     class Meta:
