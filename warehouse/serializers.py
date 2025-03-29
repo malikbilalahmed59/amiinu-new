@@ -21,6 +21,7 @@ class VariationSerializer(serializers.ModelSerializer):
         variation = Variation.objects.create(**validated_data)
 
         for option_data in options_data:
+            option_data.pop('variation', None)  # Remove if exists
             VariationOption.objects.create(variation=variation, **option_data)
 
         return variation
@@ -38,6 +39,8 @@ class ProductSerializer(serializers.ModelSerializer):
         product = Product.objects.create(**validated_data)
 
         for variation_data in variations_data:
+            variation_data.pop('product', None)  # Remove if exists
+
             VariationSerializer().create({**variation_data, 'product': product})
 
         return product
