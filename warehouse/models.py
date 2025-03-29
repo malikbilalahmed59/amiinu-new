@@ -24,8 +24,8 @@ class InboundShipment(models.Model):
     ]
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='inbound_shipments')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='inbound_shipments')
-    tracking_number = models.CharField(max_length=255, unique=True)
-    shipment_number = models.CharField(max_length=255, unique=True, blank=True)  # Added this field
+    tracking_number = models.CharField(max_length=255)
+    shipment_number = models.CharField(max_length=255, blank=True)  # Added this field
     shipment_method = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
@@ -65,7 +65,7 @@ class Product(models.Model):
     inbound_shipments = models.ForeignKey(InboundShipment, related_name='products', on_delete=models.CASCADE)  # ✅ FIXED FIELD NAME
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=255)
-    sku = models.CharField(max_length=100, unique=True)
+    sku = models.CharField(max_length=100)
     weight = models.FloatField(help_text="Weight in kg")
     dimensions = models.CharField(max_length=100, help_text="Dimensions as 'L*W*H'")
 
@@ -99,8 +99,8 @@ class OutboundShipment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='outbound_shipments')
     customer_name = models.CharField(max_length=255)
     customer_address = models.JSONField(help_text="Address as {'label': str, 'value': str}")
-    shipment_number = models.CharField(max_length=255, unique=True, blank=True)  # Added this field
-    tracking_number = models.CharField(max_length=255, unique=True)
+    shipment_number = models.CharField(max_length=255, blank=True)  # Added this field
+    tracking_number = models.CharField(max_length=255)
     shipment_method = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
