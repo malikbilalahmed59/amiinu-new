@@ -123,15 +123,15 @@ class OutboundShipmentItemSerializer(serializers.ModelSerializer):
                   'variation_name', 'quantity']
 
     def validate(self, data):
-        """
-        Validate if the requested quantity is available in stock.
-        """
         product = data.get('product')
         variation_option = data.get('variation_option')
         quantity = data.get('quantity')
 
-        if variation_option and variation_option.quantity < quantity:
-            raise serializers.ValidationError(f"Not enough stock for {variation_option.name}")
+        if variation_option is not None and quantity is not None:
+            if variation_option.quantity is None:
+                raise serializers.ValidationError(f"Variation option {variation_option.name} has no stock defined.")
+            if variation_option.quantity < quantity:
+                raise serializers.ValidationError(f"Not enough stock for {variation_option.name}")
 
         return data
 
