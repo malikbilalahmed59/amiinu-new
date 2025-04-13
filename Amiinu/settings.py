@@ -90,16 +90,17 @@ AUTHENTICATION_BACKENDS = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'defaultdb',  # Database name
-        'USER': 'avnadmin',   # Database user
-        'PASSWORD': 'AVNS_Eg0jzyfKY6MTNGFLI4a',  # Database password
-        'HOST': 'pg-24bde661-malikbilalahmed-e15c.l.aivencloud.com',  # Database host
-        'PORT': '15371',      # Database port
+        'NAME': 'defaultdb',
+        'USER': 'avnadmin',
+        'PASSWORD': 'AVNS_Eg0jzyfKY6MTNGFLI4a',
+        'HOST': 'pg-b362355-malikbilalahmed59-f049.f.aivencloud.com',
+        'PORT': '25130',
         'OPTIONS': {
-            'sslmode': 'require',  # Ensures a secure SSL connection
+            'sslmode': 'require',
         },
     }
 }
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
