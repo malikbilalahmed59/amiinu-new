@@ -90,16 +90,17 @@ AUTHENTICATION_BACKENDS = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'defaultdb',
-        'USER': 'avnadmin',
-        'PASSWORD': 'AVNS_Eg0jzyfKY6MTNGFLI4a',
-        'HOST': 'pg-b362355-malikbilalahmed59-f049.f.aivencloud.com',
-        'PORT': '25130',
+        'NAME': 'neondb',
+        'USER': 'neondb_owner',
+        'PASSWORD': 'npg_w1YOBxjoV9EF',
+        'HOST': 'ep-broad-bush-a54esksz-pooler.us-east-2.aws.neon.tech',
+        'PORT': '5432',  # Neon typically uses 5432 unless otherwise specified
         'OPTIONS': {
             'sslmode': 'require',
         },
     }
 }
+
 
 
 REST_FRAMEWORK = {
