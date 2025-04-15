@@ -59,6 +59,10 @@ class Shipment(models.Model):
     payment_status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('paid', 'Paid')], default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_dangerous_goods = models.BooleanField(default=False,
+                                             help_text="Indicates if the shipment contains dangerous goods like batteries")
+    is_one_percent_insured = models.BooleanField(default=False,
+                                                 help_text="If true, 1% of order value is used as insurance")
 
 
     shipment_number = models.CharField(max_length=20, unique=True, editable=False,null=True, blank=True)
