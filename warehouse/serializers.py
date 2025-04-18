@@ -112,6 +112,11 @@ class WarehouseSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+from rest_framework import serializers
+from django.db import transaction
+from .models import OutboundShipment, OutboundShipmentItem  # Adjust imports as needed
+
+
 class OutboundShipmentItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_sku = serializers.CharField(source='product.sku', read_only=True)
@@ -119,15 +124,19 @@ class OutboundShipmentItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OutboundShipmentItem
-        fields = ['id', 'product', 'product_name', 'product_sku', 'variation_option',
-                  'variation_name', 'quantity']
+        fields = [
+            'id', 'product', 'product_name', 'product_sku',
+            'variation_option', 'variation_name', 'quantity'
+        ]
 
     def validate(self, data):
-        product = data.get('product')
         variation_option = data.get('variation_option')
         quantity = data.get('quantity')
 
-        if variation_option is not None and quantity is not None:
+        if quantity is None or quantity <= 0:
+            raise serializers.ValidationError("Quantity must be greater than 0.")
+
+        if variation_option:
             if variation_option.quantity is None:
                 raise serializers.ValidationError(f"Variation option {variation_option.name} has no stock defined.")
             if variation_option.quantity < quantity:
@@ -153,28 +162,57 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
             'id', 'shipment_number', 'status', 'pending_at', 'shipped_at',
             'delivered_at', 'cancelled_at', 'created_at', 'updated_at'
         ]
-        # Remove user from required fields - we'll set it in create
         extra_kwargs = {
             'user': {'required': False}
         }
 
+    @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop('items', [])
 
-        # Get the user from the request context
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             validated_data['user'] = request.user
 
-        outbound_shipment = OutboundShipment.objects.create(**validated_data)
+        shipment = OutboundShipment.objects.create(**validated_data)
 
         for item_data in items_data:
-            OutboundShipmentItem.objects.create(outbound_shipment=outbound_shipment, **item_data)
+            OutboundShipmentItem.objects.create(outbound_shipment=shipment, **item_data)
 
-            # Reduce stock after shipment is created
             variation_option = item_data.get('variation_option')
             if variation_option:
                 variation_option.quantity -= item_data.get('quantity')
                 variation_option.save()
 
-        return outbound_shipment
+        return shipment
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+
+        # Update basic fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if items_data is not None:
+            # Restore old stock before deleting
+            for item in instance.items.all():
+                variation_option = item.variation_option
+                if variation_option:
+                    variation_option.quantity += item.quantity
+                    variation_option.save()
+
+            # Clear old items
+            instance.items.all().delete()
+
+            # Create new items and adjust stock
+            for item_data in items_data:
+                OutboundShipmentItem.objects.create(outbound_shipment=instance, **item_data)
+
+                variation_option = item_data.get('variation_option')
+                if variation_option:
+                    variation_option.quantity -= item_data.get('quantity')
+                    variation_option.save()
+
+        return instance
