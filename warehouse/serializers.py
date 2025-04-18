@@ -145,6 +145,16 @@ class OutboundShipmentItemSerializer(serializers.ModelSerializer):
         return data
 
 
+from rest_framework import serializers
+from django.db import transaction
+from .models import OutboundShipment, OutboundShipmentItem
+
+class OutboundShipmentItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OutboundShipmentItem
+        fields = ['id', 'variation_option', 'quantity']
+        read_only_fields = ['id']
+
 class OutboundShipmentSerializer(serializers.ModelSerializer):
     items = OutboundShipmentItemSerializer(many=True)
     warehouse_country = serializers.CharField(source='warehouse.country', read_only=True)
@@ -190,17 +200,16 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
 
-        # Update basic fields of the shipment
+        # Update basic fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
         if items_data is not None:
-            # Create a mapping of current items in DB: {variation_option_id: item}
             existing_items = {item.variation_option_id: item for item in instance.items.all()}
             new_items_map = {item['variation_option'].id: item for item in items_data}
 
-            # Step 1: Handle removed items (restock)
+            # Removed items — restock and delete
             removed_ids = set(existing_items.keys()) - set(new_items_map.keys())
             for variation_id in removed_ids:
                 item = existing_items[variation_id]
@@ -210,28 +219,37 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
                     variation.save()
                 item.delete()
 
-            # Step 2: Handle updated or new items
+            # Updated or new items
             for item_data in items_data:
                 variation_option = item_data['variation_option']
                 quantity = item_data['quantity']
                 variation_id = variation_option.id
 
                 if variation_id in existing_items:
-                    # Existing item - possibly update quantity
                     existing_item = existing_items[variation_id]
                     delta = quantity - existing_item.quantity
-
                     if delta != 0:
                         variation_option.quantity -= delta
                         variation_option.save()
-
                         existing_item.quantity = quantity
                         existing_item.save()
-                    # else: no change needed
                 else:
-                    # New item - create and deduct stock
                     OutboundShipmentItem.objects.create(outbound_shipment=instance, **item_data)
                     variation_option.quantity -= quantity
                     variation_option.save()
 
         return instance
+
+    @transaction.atomic
+    def delete(self, instance):
+        """
+        Custom delete logic to restore inventory before deleting the shipment.
+        Note: This method must be called manually in the view — DRF serializers do not use delete().
+        """
+        for item in instance.items.all():
+            variation_option = item.variation_option
+            if variation_option:
+                variation_option.quantity += item.quantity
+                variation_option.save()
+        instance.delete()
+

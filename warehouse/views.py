@@ -49,6 +49,11 @@ class OutboundShipmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return OutboundShipment.objects.filter(user=self.request.user)
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({'request': self.request})
+        return context
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -59,9 +64,11 @@ class OutboundShipmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save()
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        return context
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer()
+        serializer.delete(instance)  # Ensure inventory is restocked
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class InventoryViewSet(viewsets.ModelViewSet):
