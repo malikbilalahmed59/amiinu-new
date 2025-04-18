@@ -16,6 +16,7 @@ class SourcingRequest(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     quantity_needed = models.PositiveIntegerField()
+    target_price=models.PositiveIntegerField()
     images = models.ImageField(upload_to='sourcing_requests/')
     whatsapp_number = models.CharField(max_length=20)
     address = models.JSONField(help_text="Address as {'label': str, 'value': str}")
