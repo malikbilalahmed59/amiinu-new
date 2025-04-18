@@ -190,29 +190,48 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
 
-        # Update basic fields
+        # Update basic fields of the shipment
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
         if items_data is not None:
-            # Restore old stock before deleting
-            for item in instance.items.all():
-                variation_option = item.variation_option
-                if variation_option:
-                    variation_option.quantity += item.quantity
-                    variation_option.save()
+            # Create a mapping of current items in DB: {variation_option_id: item}
+            existing_items = {item.variation_option_id: item for item in instance.items.all()}
+            new_items_map = {item['variation_option'].id: item for item in items_data}
 
-            # Clear old items
-            instance.items.all().delete()
+            # Step 1: Handle removed items (restock)
+            removed_ids = set(existing_items.keys()) - set(new_items_map.keys())
+            for variation_id in removed_ids:
+                item = existing_items[variation_id]
+                variation = item.variation_option
+                if variation:
+                    variation.quantity += item.quantity
+                    variation.save()
+                item.delete()
 
-            # Create new items and adjust stock
+            # Step 2: Handle updated or new items
             for item_data in items_data:
-                OutboundShipmentItem.objects.create(outbound_shipment=instance, **item_data)
+                variation_option = item_data['variation_option']
+                quantity = item_data['quantity']
+                variation_id = variation_option.id
 
-                variation_option = item_data.get('variation_option')
-                if variation_option:
-                    variation_option.quantity -= item_data.get('quantity')
+                if variation_id in existing_items:
+                    # Existing item - possibly update quantity
+                    existing_item = existing_items[variation_id]
+                    delta = quantity - existing_item.quantity
+
+                    if delta != 0:
+                        variation_option.quantity -= delta
+                        variation_option.save()
+
+                        existing_item.quantity = quantity
+                        existing_item.save()
+                    # else: no change needed
+                else:
+                    # New item - create and deduct stock
+                    OutboundShipmentItem.objects.create(outbound_shipment=instance, **item_data)
+                    variation_option.quantity -= quantity
                     variation_option.save()
 
         return instance
