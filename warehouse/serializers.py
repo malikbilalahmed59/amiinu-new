@@ -145,15 +145,7 @@ class OutboundShipmentItemSerializer(serializers.ModelSerializer):
         return data
 
 
-from rest_framework import serializers
-from django.db import transaction
-from .models import OutboundShipment, OutboundShipmentItem
 
-class OutboundShipmentItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OutboundShipmentItem
-        fields = ['id', 'variation_option', 'quantity']
-        read_only_fields = ['id']
 
 class OutboundShipmentSerializer(serializers.ModelSerializer):
     items = OutboundShipmentItemSerializer(many=True)
