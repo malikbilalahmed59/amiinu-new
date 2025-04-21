@@ -109,7 +109,8 @@ class AdminOutboundShipmentViewSet(viewsets.ModelViewSet):
 class ManagementShipmentViewSet(ModelViewSet):
     queryset = Shipment.objects.all()
     serializer_class = ManagementShipmentSerializer
-    permission_classes = [IsShipmentOrWarehouseOrAdmin]  # Only management/admin users can access
+    permission_classes = [IsShipmentOrWarehouseOrAdmin]
+
 
     def get_queryset(self):
         return self.queryset
