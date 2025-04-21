@@ -166,12 +166,5 @@ class ManagementShipmentSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'containers'
         ]
 
-    def update(self, instance, validated_data):
-        """Management can only update status, estimated delivery date, and tracking details."""
-        instance.status = validated_data.get('status', instance.status)
-        instance.estimated_delivery_date = validated_data.get('estimated_delivery_date', instance.estimated_delivery_date)
-        instance.tracking_company = validated_data.get('tracking_company', instance.tracking_company)
-        instance.tracking_number = validated_data.get('tracking_number', instance.tracking_number)
-        instance.save()
-        return instance
+
 

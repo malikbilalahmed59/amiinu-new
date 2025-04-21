@@ -113,14 +113,20 @@ class ManagementShipmentViewSet(ModelViewSet):
 
 
     def get_queryset(self):
+        print("get_queryset called")
         return self.queryset
 
     def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)  # Partial updates allowed
+        try:
+            instance = self.get_object()
+        except Exception as e:
+            return Response({"detail": "No Shipment matches the given query."}, status=status.HTTP_404_NOT_FOUND)
 
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         self.perform_update(serializer)
         return Response(serializer.data)
+
+
