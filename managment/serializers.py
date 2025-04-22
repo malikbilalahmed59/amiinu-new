@@ -1,3 +1,5 @@
+from django.utils import timezone  # this is the correct one for Django
+
 from rest_framework import serializers
 from shipments.models import Shipment, Container, Product
 from shipments.serializers import ContainerSerializer  # Reuse existing container serializer
@@ -10,10 +12,12 @@ from rest_framework import serializers
 
 class InboundShipmentSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    warehouse_name = serializers.CharField(source='warehouse.country', read_only=True)
 
     class Meta:
         model = InboundShipment
-        fields = [
+        fields = ['user_email', 'warehouse_name',
             'id', 'warehouse', 'user', 'tracking_number', 'shipment_method',
             'status', 'pending_at', 'in_transit_at', 'received_at',
             'completed_at', 'cancelled_at', 'created_at', 'updated_at',
@@ -46,21 +50,41 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
 
         return inbound_shipment
 
+    def update(self, instance, validated_data):
+        products_data = validated_data.pop('products', [])
+        warehouse = validated_data.get('warehouse', instance.warehouse)
+
+        # Update basic fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Delete existing products and recreate (simpler alternative to full sync logic)
+        instance.products.all().delete()
+        for product_data in products_data:
+            product_data['inbound_shipments'] = instance
+            product_data['warehouse'] = warehouse
+            ProductSerializer().create(product_data)
+
+        return instance
+
 
 class OutboundShipmentSerializer(serializers.ModelSerializer):
     items = OutboundShipmentItemSerializer(many=True)
-    warehouse_country = serializers.CharField(source='warehouse.country', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    warehouse_name = serializers.CharField(source='warehouse.country', read_only=True)
 
     class Meta:
         model = OutboundShipment
-        fields = [
-            'id', 'warehouse', 'warehouse_country', 'user', 'customer_name',
+        fields = ['user_email', 'warehouse_name',
+            'id', 'warehouse', 'user', 'customer_name',
             'customer_address', 'tracking_number', 'shipment_method',
             'status', 'pending_at', 'shipped_at', 'delivered_at',
             'cancelled_at', 'estimated_delivery', 'created_at', 'updated_at',
             'items', 'shipment_number'
         ]
         read_only_fields = [
+
             'id', 'pending_at', 'shipped_at',
             'delivered_at', 'cancelled_at', 'created_at', 'updated_at'
         ]
@@ -85,25 +109,31 @@ class OutboundShipmentSerializer(serializers.ModelSerializer):
         return outbound_shipment
 
     def update(self, instance, validated_data):
-        # Check if status is being updated from pending to shipped
+        items_data = validated_data.pop('items', None)
         old_status = instance.status
         new_status = validated_data.get('status', old_status)
 
+        # Update status timestamps
         if old_status == 'pending' and new_status == 'shipped':
-            # Update shipped_at timestamp
-            from django.utils import timezone
             validated_data['shipped_at'] = timezone.now()
 
-            # Reduce inventory for all items in this shipment
+            # Decrement inventory for all shipment items
             self._reduce_inventory_quantities(instance)
 
-        # Perform the standard update
-        return super().update(instance, validated_data)
+        # Update instance fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Handle nested items update only if items_data is provided (for PATCH support)
+        if items_data is not None:
+            instance.items.all().delete()
+            for item_data in items_data:
+                OutboundShipmentItem.objects.create(outbound_shipment=instance, **item_data)
+
+        return instance
 
     def _reduce_inventory_quantities(self, shipment):
-        """
-        Reduce the inventory quantities when a shipment status changes from pending to shipped
-        """
         for item in shipment.items.all():
             # Get the variation option
             variation_option = item.variation_option
@@ -159,7 +189,7 @@ class ManagementShipmentSerializer(serializers.ModelSerializer):
         ]
 
         read_only_fields = [
-            'id', 'shipment_number', 'shipment_type', 'international_shipping_type', 'incoterm',
+            'id', 'shipment_number', 'shipment_type', 'international_shipping_type',
             'special_instructions', 'insure_shipment', 'insurance_value', 'is_dangerous_goods', 'is_one_percent_insured',
             'pickup_address', 'delivery_address', 'pickup_date', 'recipient_name', 'recipient_email',
             'recipient_phone', 'sender_tax_vat', 'sender_email', 'delivery_price', 'payment_status',
