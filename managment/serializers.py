@@ -13,7 +13,7 @@ from rest_framework import serializers
 class InboundShipmentSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True)
     user_email = serializers.EmailField(source='user.email', read_only=True)
-    warehouse_name = serializers.CharField(source='warehouse.country', read_only=True)
+    warehouse_name = serializers.CharField(source='warehouse.address', read_only=True)
 
     class Meta:
         model = InboundShipment
@@ -72,7 +72,7 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
 class OutboundShipmentSerializer(serializers.ModelSerializer):
     items = OutboundShipmentItemSerializer(many=True)
     user_email = serializers.EmailField(source='user.email', read_only=True)
-    warehouse_name = serializers.CharField(source='warehouse.country', read_only=True)
+    warehouse_name = serializers.CharField(source='warehouse.address', read_only=True)
 
     class Meta:
         model = OutboundShipment
