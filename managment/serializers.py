@@ -17,15 +17,17 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InboundShipment
-        fields = ['user_email', 'warehouse_name',
-            'id', 'warehouse', 'user', 'tracking_number', 'shipment_method',
+        fields = [
+            'user_email', 'warehouse_name', 'id', 'warehouse', 'user',
+            'tracking_number', 'shipment_number', 'shipment_method',
             'status', 'pending_at', 'in_transit_at', 'received_at',
             'completed_at', 'cancelled_at', 'created_at', 'updated_at',
-            'products', 'status',
+            'products'
         ]
         read_only_fields = [
-            'id', 'shipment_number' ,'pending_at', 'in_transit_at', 'received_at',
-            'completed_at', 'cancelled_at', 'created_at', 'updated_at'
+            'id', 'shipment_number', 'pending_at', 'in_transit_at',
+            'received_at', 'completed_at', 'cancelled_at',
+            'created_at', 'updated_at'
         ]
         # Remove user from required fields - we'll set it in create
         extra_kwargs = {

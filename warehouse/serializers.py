@@ -52,7 +52,7 @@ class InboundShipmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = InboundShipment
         fields = [
-            'id', 'warehouse', 'user', 'tracking_number', 'shipment_method',
+            'id', 'warehouse','shipment_number', 'user', 'tracking_number', 'shipment_method',
             'status', 'pending_at', 'in_transit_at', 'received_at',
             'completed_at', 'cancelled_at', 'created_at', 'updated_at',
             'products'
