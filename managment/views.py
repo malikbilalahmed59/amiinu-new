@@ -106,27 +106,53 @@ class AdminOutboundShipmentViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         return context
+
+
 class ManagementShipmentViewSet(ModelViewSet):
     queryset = Shipment.objects.all()
     serializer_class = ManagementShipmentSerializer
     permission_classes = [IsShipmentOrWarehouseOrAdmin]
 
-
     def get_queryset(self):
-        print("get_queryset called")
-        return self.queryset
+        """
+        Optionally filter by status, date range, etc.
+        """
+        queryset = self.queryset
+
+        # Example filters (you can add more based on your needs)
+        status_filter = self.request.query_params.get('status', None)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        return queryset
 
     def update(self, request, *args, **kwargs):
-        try:
-            instance = self.get_object()
-        except Exception as e:
-            return Response({"detail": "No Shipment matches the given query."}, status=status.HTTP_404_NOT_FOUND)
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
 
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        # Allow partial updates (PATCH)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+
+        # Optionally, you can add some business logic here
+        # For example, sending notifications when status changes
+        if 'status' in request.data:
+            self.handle_status_change(instance, request.data['status'])
+
         return Response(serializer.data)
+
+    def handle_status_change(self, shipment, new_status):
+        """
+        Handle any business logic when status changes
+        """
+        # Example: Send email notifications, create logs, etc.
+        old_status = shipment.status
+
+        if old_status != new_status:
+            # Log the status change
+            # Send notifications
+            # Update tracking information
+            pass
 
 
