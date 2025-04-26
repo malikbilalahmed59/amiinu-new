@@ -1,29 +1,30 @@
-from django.db.models import Count
-from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated
+# views.py
+from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
-from rest_framework import status
-from .models import SourcingRequest
-from .serializers import SourcingRequestSerializer
+from rest_framework.decorators import action
+from django.utils import timezone
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
+from .models import SourcingRequest, Quotation, Shipping
+from .serializers import SourcingRequestSerializer, QuotationSerializer, ShippingSerializer
 
 
-class SourcingRequestViewSet(ModelViewSet):
+class SourcingRequestViewSet(viewsets.ModelViewSet):
     serializer_class = SourcingRequestSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Return only sourcing requests created by the logged-in user
+        if self.request.user.is_staff or self.request.user.is_superuser or self.request.user.role == 'supplier':
+            return SourcingRequest.objects.all()
         return SourcingRequest.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        # Automatically associate the logged-in user with the sourcing request
         serializer.save(user=self.request.user)
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
 
-        # Aggregate data for status summary
         status_counts = (
             queryset.values('status')
             .annotate(total=Count('status'))
@@ -32,31 +33,134 @@ class SourcingRequestViewSet(ModelViewSet):
         for entry in status_counts:
             summary[entry['status']] = entry['total']
 
-        # Combine sourcing requests and summary in the response
         return Response({
             'sourcing_requests': serializer.data,
             'status_summary': summary,
         })
 
-    def handle_exception(self, exc):
-        """
-        Override to standardize error response format and include field names.
-        """
-        response = super().handle_exception(exc)
-        if response.status_code == status.HTTP_400_BAD_REQUEST:
-            if isinstance(response.data, dict):
-                # Extract error messages and include field names in the response
-                errors = {}
-                for field, error_list in response.data.items():
-                    errors[field] = " ".join([str(error) for error in error_list])
-                response.data = {"message": errors}
-            else:
-                response.data = {"message": "Invalid input."}
-        elif response.status_code == status.HTTP_404_NOT_FOUND:
-            response.data = {"message": "The requested resource was not found."}
-        elif response.status_code == status.HTTP_403_FORBIDDEN:
-            response.data = {"message": "You do not have permission to perform this action."}
-        else:
-            response.data = {"message": "An unexpected error occurred. Please try again."}
-        return response
 
+class QuotationBySourcingRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = QuotationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_staff or self.request.user.is_superuser or self.request.user.role == 'supplier':
+            return Quotation.objects.all()
+        return Quotation.objects.filter(sourcing_request__user=self.request.user)
+
+    def get_object(self):
+        """Override to get quotation by sourcing request ID"""
+        sourcing_request_id = self.kwargs.get('pk')
+        sourcing_request = get_object_or_404(SourcingRequest, pk=sourcing_request_id)
+
+        # Check permissions
+        if not (self.request.user.is_staff or
+                self.request.user.is_superuser or
+                self.request.user.role == 'supplier' or
+                sourcing_request.user == self.request.user):
+            self.permission_denied(self.request)
+
+        # Get or create quotation for this sourcing request
+        quotation, created = Quotation.objects.get_or_create(sourcing_request=sourcing_request)
+        return quotation
+
+    def create(self, request, *args, **kwargs):
+        if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
+            return Response(
+                {"detail": "Only administrators and suppliers can create quotations."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get sourcing request from body
+        sourcing_request_id = request.data.get('sourcing_request')
+        sourcing_request = get_object_or_404(SourcingRequest, pk=sourcing_request_id)
+
+        # Check if quotation already exists
+        if hasattr(sourcing_request, 'quotation'):
+            return Response(
+                {"detail": "Quotation already exists for this sourcing request."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
+            return Response(
+                {"detail": "Only administrators and suppliers can update quotations."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+
+class ShippingBySourcingRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = ShippingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_staff or self.request.user.is_superuser or self.request.user.role == 'supplier':
+            return Shipping.objects.all()
+        return Shipping.objects.filter(sourcing_request__user=self.request.user)
+
+    def get_object(self):
+        """Override to get shipping by sourcing request ID"""
+        sourcing_request_id = self.kwargs.get('pk')
+        sourcing_request = get_object_or_404(SourcingRequest, pk=sourcing_request_id)
+
+        # Check permissions
+        if not (self.request.user.is_staff or
+                self.request.user.is_superuser or
+                self.request.user.role == 'supplier' or
+                sourcing_request.user == self.request.user):
+            self.permission_denied(self.request)
+
+        # Get or create shipping for this sourcing request
+        shipping, created = Shipping.objects.get_or_create(sourcing_request=sourcing_request)
+        return shipping
+
+    def create(self, request, *args, **kwargs):
+        if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
+            return Response(
+                {"detail": "Only administrators and suppliers can create shipping records."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get sourcing request from body
+        sourcing_request_id = request.data.get('sourcing_request')
+        sourcing_request = get_object_or_404(SourcingRequest, pk=sourcing_request_id)
+
+        # Check if shipping already exists
+        if hasattr(sourcing_request, 'shipping'):
+            return Response(
+                {"detail": "Shipping record already exists for this sourcing request."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
+            return Response(
+                {"detail": "Only administrators and suppliers can update shipping records."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def mark_as_shipped(self, request, pk=None):
+        """Custom action to mark an item as shipped"""
+        if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
+            return Response(
+                {"detail": "Only administrators and suppliers can mark items as shipped."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        shipping = self.get_object()
+        shipping.shipped_date = timezone.now()
+        shipping.save()
+
+        shipping.sourcing_request.status = 'shipped'
+        shipping.sourcing_request.save()
+
+        serializer = self.get_serializer(shipping)
+        return Response(serializer.data)

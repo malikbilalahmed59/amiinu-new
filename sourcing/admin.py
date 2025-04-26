@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SourcingRequest, Quotation, Payment, Shipping
+from .models import SourcingRequest, Quotation, Shipping
 
 
 @admin.register(SourcingRequest)
@@ -35,19 +35,6 @@ class QuotationAdmin(admin.ModelAdmin):
         }),
     )
 
-
-@admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'sourcing_request', 'payment_amount', 'payment_status', 'payment_date')
-    list_filter = ('payment_status', 'payment_date')
-    search_fields = ('sourcing_request__name', 'sourcing_request__user__username')
-    ordering = ('-payment_date',)
-    readonly_fields = ('payment_date',)
-    fieldsets = (
-        ('Payment Details', {
-            'fields': ('sourcing_request', 'payment_amount', 'payment_status', 'payment_date')
-        }),
-    )
 
 
 @admin.register(Shipping)

@@ -29,27 +29,23 @@ class SourcingRequest(models.Model):
 
 class Quotation(models.Model):
     sourcing_request = models.OneToOneField(SourcingRequest, on_delete=models.CASCADE, related_name='quotation')
-    quotation_price = models.DecimalField(max_digits=10, decimal_places=2)  # Quoted price for the request
-    sent_at = models.DateTimeField(auto_now_add=True)  # Timestamp for when the quotation was sent
+    quotation_price = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)  # Quoted price for the request
+    sent_at = models.DateTimeField(auto_now_add=True,blank=True, null=True)  # Timestamp for when the quotation was sent
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)  # Payment amount
+    payment_status = models.BooleanField(default=False)  # Payment status (Paid/Not Paid)
+    payment_date = models.DateTimeField(blank=True, null=True)  # Payment date
+
 
     def __str__(self):
         return f"Quotation for {self.sourcing_request.name} - {self.sourcing_request.user.username}"
 
-class Payment(models.Model):
-    sourcing_request = models.OneToOneField(SourcingRequest, on_delete=models.CASCADE, related_name='payment')
-    payment_amount = models.DecimalField(max_digits=10, decimal_places=2)  # Payment amount
-    payment_status = models.BooleanField(default=False)  # Payment status (Paid/Not Paid)
-    payment_date = models.DateTimeField(blank=True, null=True)  # Payment date
 
-    def __str__(self):
-        return f"Payment for {self.sourcing_request.name} - {self.sourcing_request.user.username}"
 
 class Shipping(models.Model):
     sourcing_request = models.OneToOneField(SourcingRequest, on_delete=models.CASCADE, related_name='shipping')
     tracking_number = models.CharField(max_length=255, blank=True, null=True)  # Tracking number
     shipped_date = models.DateTimeField(blank=True, null=True)  # Date of shipment
     estimated_delivery_date = models.DateTimeField(blank=True, null=True)  # Estimated delivery date
-    live_tracking_url = models.URLField(blank=True, null=True)  # URL for live tracking
 
     def __str__(self):
         return f"Shipping for {self.sourcing_request.name} - {self.sourcing_request.user.username}"
