@@ -29,7 +29,12 @@ class SourcingRequest(models.Model):
 
 class Quotation(models.Model):
     sourcing_request = models.OneToOneField(SourcingRequest, on_delete=models.CASCADE, related_name='quotation')
-    quotation_price = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)  # Quoted price for the request
+    air_shipment_cost = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
+    truck_shipment_cost = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
+    note=models.TextField(null=True,blank=True)
+
+
     sent_at = models.DateTimeField(auto_now_add=True,blank=True, null=True)  # Timestamp for when the quotation was sent
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)  # Payment amount
     payment_status = models.BooleanField(default=False)  # Payment status (Paid/Not Paid)

@@ -22,19 +22,6 @@ class SourcingRequestAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(Quotation)
-class QuotationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'sourcing_request', 'quotation_price', 'sent_at')
-    list_filter = ('sent_at',)
-    search_fields = ('sourcing_request__name', 'sourcing_request__user__username')
-    ordering = ('-sent_at',)
-    readonly_fields = ('sent_at',)
-    fieldsets = (
-        ('Quotation Details', {
-            'fields': ('sourcing_request', 'quotation_price', 'sent_at')
-        }),
-    )
-
 
 
 @admin.register(Shipping)
