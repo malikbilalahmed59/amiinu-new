@@ -5,6 +5,8 @@ from .models import SourcingRequest, Quotation, Shipping
 
 
 class SourcingRequestSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+
     class Meta:
         model = SourcingRequest
         fields = '__all__'
@@ -48,6 +50,7 @@ class QuotationSerializer(serializers.ModelSerializer):
 
 
 class ShippingSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Shipping
         fields = '__all__'
