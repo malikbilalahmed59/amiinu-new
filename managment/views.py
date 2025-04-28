@@ -115,23 +115,13 @@ class ManagementShipmentViewSet(ModelViewSet):
 
     # Add this temporarily to your management app view to debug
     def get_queryset(self):
-        queryset = self.queryset
-        print(queryset.query)  # This will print the actual SQL query
+        # queryset = self.queryset
+        #
+        # status_filter = self.request.query_params.get('status', None)
+        # if status_filter:
+        #     queryset = queryset.filter(status=status_filter)
 
-        print(f"Total shipments in database: {queryset.count()}")
-        print(f"Current user: {self.request.user}")
-        print(f"User role: {self.request.user.role}")
-        print(f"Is superuser: {self.request.user.is_superuser}")
-
-        # List all shipments with their users
-        for shipment in queryset:
-            print(f"Shipment {shipment.shipment_number} belongs to user: {shipment.user}")
-
-        status_filter = self.request.query_params.get('status', None)
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-
-        return queryset
+        return Shipment.objects.all()
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
