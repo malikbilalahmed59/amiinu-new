@@ -113,13 +113,20 @@ class ManagementShipmentViewSet(ModelViewSet):
     serializer_class = ManagementShipmentSerializer
     permission_classes = [IsShipmentOrWarehouseOrAdmin]
 
+    # Add this temporarily to your management app view to debug
     def get_queryset(self):
-        """
-        Optionally filter by status, date range, etc.
-        """
         queryset = self.queryset
+        print(queryset.query)  # This will print the actual SQL query
 
-        # Example filters (you can add more based on your needs)
+        print(f"Total shipments in database: {queryset.count()}")
+        print(f"Current user: {self.request.user}")
+        print(f"User role: {self.request.user.role}")
+        print(f"Is superuser: {self.request.user.is_superuser}")
+
+        # List all shipments with their users
+        for shipment in queryset:
+            print(f"Shipment {shipment.shipment_number} belongs to user: {shipment.user}")
+
         status_filter = self.request.query_params.get('status', None)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
