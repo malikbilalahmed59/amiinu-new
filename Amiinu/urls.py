@@ -10,6 +10,7 @@ urlpatterns = [
     path('api/sourcing/', include('sourcing.urls')),
     path('api/',include('shipments.urls')),
     path('api/warehouse/',include('warehouse.urls')),
+    path('api/', include('notification.urls')),
 
     path('api/management/',include('managment.urls')),
 

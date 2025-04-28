@@ -29,7 +29,9 @@ INSTALLED_APPS = [
     'suggestions.apps.SuggestionsConfig',
     'sourcing.apps.SourcingConfig',
     'warehouse.apps.WarehouseConfig',
-    'managment.apps.ManagmentConfig'
+    'managment.apps.ManagmentConfig',
+    'notification.apps.NotificationConfig',
+    'channels',
 
 ]
 
@@ -196,3 +198,16 @@ EMAIL_HOST_PASSWORD = 'hfeqhsyxroulyxqe'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 GOOGLE_PLACES_API_KEY = "AIzaSyAwx4YgbAjcpvUuZzRJjH5brsri2nOnzAs"
+
+# Add at the end of settings.py
+ASGI_APPLICATION = 'Amiinu.asgi.application'
+
+# Update your CHANNEL_LAYERS configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": ['redis://default:r3qKOdlYQFLRRWULYvrn877bh6rvYwwd@redis-17675.c84.us-east-1-2.ec2.redns.redis-cloud.com:17675'],
+        },
+    },
+}
