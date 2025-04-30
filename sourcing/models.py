@@ -1,22 +1,12 @@
 from django.db import models
 from django.conf import settings
-
 import string
 import random
-from django.db import models
-from django.conf import settings
+
 
 def generate_reference_number():
     # Don't check for uniqueness during migrations
-    import random
-    import string
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
-
-
-import random
-import string
-from django.conf import settings
-from django.db import models
 
 
 class SourcingRequest(models.Model):
@@ -64,31 +54,46 @@ class SourcingRequest(models.Model):
 
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        # Ensure related quotation and shipping records are deleted first
+        # This helps prevent the issue where deletion leaves orphaned records
+        if hasattr(self, 'quotation'):
+            self.quotation.delete()
+        if hasattr(self, 'shipping'):
+            self.shipping.delete()
+        super().delete(*args, **kwargs)
+
 
 class Quotation(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+
     sourcing_request = models.OneToOneField(SourcingRequest, on_delete=models.CASCADE, related_name='quotation')
-    air_shipment_cost = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
-    truck_shipment_cost = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)
-    note=models.TextField(null=True,blank=True)
+    air_shipment_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    sea_shipment_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    truck_shipment_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    note = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    rejection_reason = models.TextField(null=True, blank=True)
 
-
-    sent_at = models.DateTimeField(auto_now_add=True,blank=True, null=True)  # Timestamp for when the quotation was sent
-    payment_amount = models.DecimalField(max_digits=10, decimal_places=2,blank=True, null=True)  # Payment amount
-    payment_status = models.BooleanField(default=False)  # Payment status (Paid/Not Paid)
-    payment_date = models.DateTimeField(blank=True, null=True)  # Payment date
-
+    sent_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    payment_status = models.BooleanField(default=False)
+    payment_date = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"Quotation for {self.sourcing_request.name} - {self.sourcing_request.user.username}"
 
 
-
 class Shipping(models.Model):
     sourcing_request = models.OneToOneField(SourcingRequest, on_delete=models.CASCADE, related_name='shipping')
-    tracking_number = models.CharField(max_length=255, blank=True, null=True)  # Tracking number
-    shipped_date = models.DateTimeField(blank=True, null=True)  # Date of shipment
-    estimated_delivery_date = models.DateTimeField(blank=True, null=True)  # Estimated delivery date
+    tracking_number = models.CharField(max_length=255, blank=True, null=True)
+    shipped_date = models.DateTimeField(blank=True, null=True)
+    estimated_delivery_date = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"Shipping for {self.sourcing_request.name} - {self.sourcing_request.user.username}"
