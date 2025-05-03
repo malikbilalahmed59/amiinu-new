@@ -106,7 +106,6 @@ class QuotationBySourcingRequestViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """
         Override to properly handle quotation deletion.
-        Supports deletion by either quotation ID or sourcing request ID.
         Only staff, admins, or suppliers can delete quotations.
         """
         if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
@@ -115,38 +114,10 @@ class QuotationBySourcingRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Check if delete is by sourcing request ID
-        sourcing_request_id = request.query_params.get('sourcing_request_id')
-
-        if sourcing_request_id:
-            # Delete by sourcing request ID
-            sourcing_request = get_object_or_404(SourcingRequest, pk=sourcing_request_id)
-
-            # Check permissions
-            if not (request.user.is_staff or
-                    request.user.is_superuser or
-                    request.user.role == 'supplier' or
-                    sourcing_request.user == request.user):
-                return Response(
-                    {"detail": "You do not have permission to delete this quotation."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-            # Find and delete the quotation
-            try:
-                quotation = Quotation.objects.get(sourcing_request=sourcing_request)
-                quotation.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            except Quotation.DoesNotExist:
-                return Response(
-                    {"detail": "Quotation for this sourcing request does not exist."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        else:
-            # Standard deletion by quotation ID
-            quotation = self.get_object()
-            quotation.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        # Standard deletion by quotation ID
+        quotation = self.get_object()
+        quotation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def create(self, request, *args, **kwargs):
         if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
@@ -329,7 +300,6 @@ class ShippingBySourcingRequestViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """
         Override to properly handle shipping record deletion.
-        Supports deletion by either shipping ID or sourcing request ID.
         Only staff, admins, or suppliers can delete shipping records.
         """
         if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):
@@ -338,38 +308,10 @@ class ShippingBySourcingRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Check if delete is by sourcing request ID
-        sourcing_request_id = request.query_params.get('sourcing_request_id')
-
-        if sourcing_request_id:
-            # Delete by sourcing request ID
-            sourcing_request = get_object_or_404(SourcingRequest, pk=sourcing_request_id)
-
-            # Check permissions
-            if not (request.user.is_staff or
-                    request.user.is_superuser or
-                    request.user.role == 'supplier' or
-                    sourcing_request.user == request.user):
-                return Response(
-                    {"detail": "You do not have permission to delete this shipping record."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-            # Find and delete the shipping record
-            try:
-                shipping = Shipping.objects.get(sourcing_request=sourcing_request)
-                shipping.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            except Shipping.DoesNotExist:
-                return Response(
-                    {"detail": "Shipping record for this sourcing request does not exist."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-        else:
-            # Standard deletion by shipping ID
-            shipping = self.get_object()
-            shipping.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        # Standard deletion by shipping ID
+        shipping = self.get_object()
+        shipping.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def create(self, request, *args, **kwargs):
         if not (request.user.is_staff or request.user.is_superuser or request.user.role == 'supplier'):

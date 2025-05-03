@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 import string
 import random
 
@@ -18,6 +20,7 @@ class SourcingRequest(models.Model):
         ('shipped', 'Shipped'),
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
+        ('quotation_rejected', 'Quotation Rejected')
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sourcing_requests')
@@ -97,3 +100,18 @@ class Shipping(models.Model):
 
     def __str__(self):
         return f"Shipping for {self.sourcing_request.name} - {self.sourcing_request.user.username}"
+
+
+@receiver(post_save, sender=Quotation)
+def update_sourcing_request_status(sender, instance, **kwargs):
+    """
+    Update SourcingRequest status when Quotation status changes
+    """
+    sourcing_request = instance.sourcing_request
+
+    if instance.status == 'rejected':
+        sourcing_request.status = 'quotation_rejected'
+        sourcing_request.save()
+    elif instance.status == 'accepted':
+        sourcing_request.status = 'quotation_sent'
+        sourcing_request.save()

@@ -12,9 +12,47 @@ from warehouse.models import InboundShipment, OutboundShipment
 from .models import Notification
 
 
+def is_admin_user(user):
+    """Check if user is admin/staff"""
+    return user.is_staff or user.is_superuser
+
+
+def get_user_reference_url(user, instance, app_name, notification_type, status=None):
+    """Get reference URL based on user role"""
+    if is_admin_user(user):
+        # Admin URLs
+        if app_name == 'shipment':
+            return f"/admin/shipments/edit/{instance.id}"
+        elif app_name == 'sourcing':
+            return f"/admin/sourcing/edit/{instance.id}"
+        elif app_name == 'warehouse':
+            if isinstance(instance, InboundShipment):
+                return f"/admin/warehouse/inbound-shipments/{instance.id}"
+            elif isinstance(instance, OutboundShipment):
+                return f"/admin/warehouse/outbound-shipments/{instance.id}"
+    else:
+        # User URLs
+        if app_name == 'shipment':
+            return "/shipments"
+        elif app_name == 'sourcing':
+            # Special case for quotation_sent status
+            if status == 'quotation_sent':
+                return f"/sourcing/make-a-payment/{instance.id}"
+            return "/sourcing"
+        elif app_name == 'warehouse':
+            return "/warehouse"
+
+    return None
+
+
 def create_notification(user, app_name, notification_type, title, message, content_object, reference_number=None,
-                        reference_url=None):
+                        reference_url=None, status=None):
     """Helper function to create notifications"""
+
+    # If reference_url not provided, generate based on user role
+    if reference_url is None:
+        reference_url = get_user_reference_url(user, content_object, app_name, notification_type, status)
+
     notification = Notification.objects.create(
         user=user,
         app_name=app_name,
@@ -69,7 +107,7 @@ def sourcing_request_status_change(sender, instance, **kwargs):
                     message=f"Your sourcing request '{instance.name}' (Ref: {instance.reference_number}) status changed from {old_instance.get_status_display()} to {instance.get_status_display()}",
                     content_object=instance,
                     reference_number=instance.reference_number,
-                    reference_url=f"/sourcing/{instance.id}"
+                    status=instance.status  # Pass the status for special URL handling
                 )
         except SourcingRequest.DoesNotExist:
             pass
@@ -84,9 +122,8 @@ def quotation_notification(sender, instance, created, **kwargs):
             notification_type='quotation_created',
             title="New Quotation Received",
             message=f"A quotation has been created for '{instance.sourcing_request.name}' (Ref: {instance.sourcing_request.reference_number})",
-            content_object=instance,
-            reference_number=instance.sourcing_request.reference_number,
-            reference_url=f"/sourcing/quotations/{instance.id}"
+            content_object=instance.sourcing_request,  # Use sourcing request as content object
+            reference_number=instance.sourcing_request.reference_number
         )
     else:
         create_notification(
@@ -95,9 +132,8 @@ def quotation_notification(sender, instance, created, **kwargs):
             notification_type='quotation_updated',
             title="Quotation Updated",
             message=f"The quotation for '{instance.sourcing_request.name}' has been updated",
-            content_object=instance,
-            reference_number=instance.sourcing_request.reference_number,
-            reference_url=f"/sourcing/quotations/{instance.id}"
+            content_object=instance.sourcing_request,  # Use sourcing request as content object
+            reference_number=instance.sourcing_request.reference_number
         )
 
 
@@ -112,8 +148,7 @@ def shipment_notification(sender, instance, created, **kwargs):
             title="Shipment Created",
             message=f"New shipment {instance.shipment_number} has been created",
             content_object=instance,
-            reference_number=instance.shipment_number,
-            reference_url=f"/shipments/{instance.id}"
+            reference_number=instance.shipment_number
         )
     else:
         # Check for status changes
@@ -128,8 +163,7 @@ def shipment_notification(sender, instance, created, **kwargs):
                         title="Shipment Status Updated",
                         message=f"Shipment {instance.shipment_number} status changed from {old_instance.get_status_display()} to {instance.get_status_display()}",
                         content_object=instance,
-                        reference_number=instance.shipment_number,
-                        reference_url=f"/shipments/{instance.id}"
+                        reference_number=instance.shipment_number
                     )
 
                 # Check for tracking number addition
@@ -141,8 +175,7 @@ def shipment_notification(sender, instance, created, **kwargs):
                         title="Tracking Number Added",
                         message=f"Tracking number {instance.tracking_number} has been added to shipment {instance.shipment_number}",
                         content_object=instance,
-                        reference_number=instance.shipment_number,
-                        reference_url=f"/shipments/{instance.id}"
+                        reference_number=instance.shipment_number
                     )
             except ShipmentModel.DoesNotExist:
                 pass
@@ -159,8 +192,7 @@ def inbound_shipment_notification(sender, instance, created, **kwargs):
             title="Inbound Shipment Created",
             message=f"New inbound shipment {instance.shipment_number} to {instance.warehouse.country} warehouse",
             content_object=instance,
-            reference_number=instance.shipment_number,
-            reference_url=f"/warehouse/inbound/{instance.id}"
+            reference_number=instance.shipment_number
         )
     else:
         if instance.pk:
@@ -174,8 +206,7 @@ def inbound_shipment_notification(sender, instance, created, **kwargs):
                         title="Inbound Shipment Status Updated",
                         message=f"Inbound shipment {instance.shipment_number} status changed from {old_instance.get_status_display()} to {instance.get_status_display()}",
                         content_object=instance,
-                        reference_number=instance.shipment_number,
-                        reference_url=f"/warehouse/inbound/{instance.id}"
+                        reference_number=instance.shipment_number
                     )
             except InboundShipment.DoesNotExist:
                 pass
@@ -191,8 +222,7 @@ def outbound_shipment_notification(sender, instance, created, **kwargs):
             title="Outbound Shipment Created",
             message=f"New outbound shipment {instance.shipment_number} for {instance.customer_name}",
             content_object=instance,
-            reference_number=instance.shipment_number,
-            reference_url=f"/warehouse/outbound/{instance.id}"
+            reference_number=instance.shipment_number
         )
     else:
         if instance.pk:
@@ -206,8 +236,7 @@ def outbound_shipment_notification(sender, instance, created, **kwargs):
                         title="Outbound Shipment Status Updated",
                         message=f"Outbound shipment {instance.shipment_number} status changed from {old_instance.get_status_display()} to {instance.get_status_display()}",
                         content_object=instance,
-                        reference_number=instance.shipment_number,
-                        reference_url=f"/warehouse/outbound/{instance.id}"
+                        reference_number=instance.shipment_number
                     )
             except OutboundShipment.DoesNotExist:
                 pass
