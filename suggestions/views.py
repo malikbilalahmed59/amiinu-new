@@ -633,29 +633,8 @@ class ShippingRateViewSet(viewsets.ViewSet):
         logger.info("Using fallback hardcoded shipping rates")
 
         return {
-            "success": True,
-            "shipping_options": {
-                "PRIORITY": {
-                    "amount": 1123.73,
-                    "currency": "USD",
-                    "service_name": "FedEx International Priority"
-                },
-                "PRIORITY EXPRESS": {
-                    "amount": 1179.02,
-                    "currency": "USD",
-                    "service_name": "FedEx International Priority Express"
-                },
-                "ECONOMY": {
-                    "amount": 952.85,
-                    "currency": "USD",
-                    "service_name": "FedEx International Economy"
-                },
-                "CONNECT PLUS": {
-                    "amount": 822.82,
-                    "currency": "USD",
-                    "service_name": "FedEx International Connect Plus"
-                }
-            }
+            "success": False
+
         }
 
 # Use persistent connection pooling for speed
