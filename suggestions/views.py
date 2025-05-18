@@ -643,9 +643,10 @@ client = httpx.Client(
     headers={"Accept-Encoding": "gzip, deflate"},  # Request compressed responses
 )
 
+
 @api_view(['GET'])
 def address_suggestions(request):
-    """Fetch optimized address suggestions from Google Places API."""
+    """Fetch optimized address suggestions from Google Places API with coordinates."""
 
     query = request.GET.get('query', '').strip()
     if not query:
@@ -656,7 +657,8 @@ def address_suggestions(request):
 
     session_token = request.GET.get('sessiontoken', str(uuid.uuid4()))
     api_key = settings.GOOGLE_PLACES_API_KEY
-    endpoint = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+    autocomplete_endpoint = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+    details_endpoint = "https://maps.googleapis.com/maps/api/place/details/json"
 
     params = {
         "input": query,
@@ -667,8 +669,8 @@ def address_suggestions(request):
     }
 
     try:
-        # Make the request
-        response = client.get(endpoint, params=params)
+        # Make the request to Autocomplete API
+        response = client.get(autocomplete_endpoint, params=params)
         response.raise_for_status()
         data = response.json()
 
@@ -676,10 +678,38 @@ def address_suggestions(request):
         google_status = data.get("status", "")
 
         if google_status == "OK":
-            suggestions = [
-                {"description": place["description"], "place_id": place["place_id"]}
-                for place in data.get("predictions", [])
-            ]
+            suggestions = []
+
+            for place in data.get("predictions", []):
+                place_id = place["place_id"]
+
+                # Request place details to get coordinates
+                details_params = {
+                    "place_id": place_id,
+                    "fields": "geometry",
+                    "key": api_key,
+                    "sessiontoken": session_token  # Reuse the same session token
+                }
+
+                details_response = client.get(details_endpoint, params=details_params)
+                details_response.raise_for_status()
+                details_data = details_response.json()
+
+                # Extract coordinates if available
+                location = None
+                if details_data.get("status") == "OK":
+                    geometry = details_data.get("result", {}).get("geometry", {})
+                    location = geometry.get("location", {})
+
+                suggestions.append({
+                    "description": place["description"],
+                    "place_id": place_id,
+                    "location": {
+                        "lat": location.get("lat") if location else None,
+                        "lng": location.get("lng") if location else None
+                    }
+                })
+
             return Response({"suggestions": suggestions}, status=status.HTTP_200_OK)
 
         elif google_status == "ZERO_RESULTS":
@@ -712,17 +742,16 @@ def address_suggestions(request):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    except httpx.RequestError:
+    except httpx.RequestError as e:
         return Response(
-            {"error": "Failed to connect to Google API."},
+            {"error": f"Failed to connect to Google API: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-    except Exception:
+    except Exception as e:
         return Response(
-            {"error": "An unexpected error occurred."},
+            {"error": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
 
 
