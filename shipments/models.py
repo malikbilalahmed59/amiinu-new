@@ -16,6 +16,7 @@ INTERNATIONAL_SHIPPING_TYPES = [
     ('express_air', 'Express Air'),
     ('fcl_sea', 'FCL (Full Container Load) Sea'),
     ('lcl_sea', 'LCL (Less than Container Load) Sea'),
+    ('connect_plus','connect_plus')
 ]
 
 CONTAINER_TYPES = [
