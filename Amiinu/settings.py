@@ -51,7 +51,10 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'Amiinu.urls'
 CORS_ALLOW_ALL_ORIGINS = True
-
+CSRF_TRUSTED_ORIGINS = [
+    'https://amiinu-a65d0d320947.herokuapp.com',
+    'http://amiinu-a65d0d320947.herokuapp.com',
+]
 # Or restrict to specific domains (for production):
 # CORS_ALLOWED_ORIGINS = [
 #     "http://localhost:3000",
