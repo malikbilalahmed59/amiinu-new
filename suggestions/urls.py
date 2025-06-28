@@ -1,9 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ShippingRateViewSet, address_suggestions, ControlRateViewSet
+from .views import ShippingRateViewSet, address_suggestions, ControlRateViewSet, CountryViewSet, ShippingServiceViewSet
 
 router = DefaultRouter()
 router.register(r'shipping-rates', ShippingRateViewSet, basename='shipping-rates')
+router.register(r'control-countries', CountryViewSet, basename='countries')
+router.register(r'control-services', ShippingServiceViewSet, basename='services')
 router.register(r'control-rates', ControlRateViewSet, basename='control-rates')
 
 

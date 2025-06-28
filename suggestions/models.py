@@ -1,8 +1,5 @@
-# models.py
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-import csv
-import io
 from django.core.exceptions import ValidationError
 
 
@@ -35,12 +32,7 @@ class ShippingService(models.Model):
 
 
 class ShippingRoute(models.Model):
-    CONDITION_CHOICES = [
-        ('flat_rate', 'Flat Rate'),
-        ('per_kg', 'Per KG'),
-        ('per_cubic_meter', 'Per Cubic Meter'),
-        ('tiered', 'Tiered Pricing'),
-    ]
+
 
     shipping_from = models.ForeignKey(
         Country,
@@ -60,7 +52,6 @@ class ShippingRoute(models.Model):
 
     # Route details
     rate_name = models.CharField(max_length=100, blank=True)
-    condition = models.CharField(max_length=20, choices=CONDITION_CHOICES)
     weight_limit = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -102,73 +93,3 @@ class ShippingRoute(models.Model):
         if self.min_weight > self.weight_limit:
             raise ValidationError("Minimum weight cannot be greater than weight limit")
 
-    @classmethod
-    def create_or_update_from_csv(cls, csv_file):
-        """
-        Create or update shipping routes from CSV file
-        Expected CSV format:
-        shipping_from,shipping_to,service_type,rate_name,condition,weight_limit,transit_time,price,profit_margin,min_weight
-        """
-        results = {
-            'created': 0,
-            'updated': 0,
-            'errors': []
-        }
-
-        try:
-            # Read CSV content
-            csv_content = csv_file.read().decode('utf-8')
-            csv_reader = csv.DictReader(io.StringIO(csv_content))
-
-            for row_num, row in enumerate(csv_reader, start=2):
-                try:
-                    # Get or create countries
-                    from_country, _ = Country.objects.get_or_create(
-                        name=row['shipping_from'].strip()
-                    )
-                    to_country, _ = Country.objects.get_or_create(
-                        name=row['shipping_to'].strip()
-                    )
-
-                    # Get or create shipping service (FIXED - only service_type)
-                    service, _ = ShippingService.objects.get_or_create(
-                        service_type=row['service_type'].strip()
-                    )
-
-                    # Check if route exists
-                    route, created = cls.objects.get_or_create(
-                        shipping_from=from_country,
-                        shipping_to=to_country,
-                        service=service,
-                        defaults={
-                            'rate_name': row.get('rate_name', '').strip(),
-                            'condition': row['condition'].strip(),
-                            'weight_limit': float(row['weight_limit']),
-                            'transit_time': row['transit_time'].strip(),
-                            'price': float(row['price']),
-                            'profit_margin': float(row['profit_margin']),
-                            'min_weight': float(row.get('min_weight', 0)),
-                        }
-                    )
-
-                    if created:
-                        results['created'] += 1
-                    else:
-                        # Update existing route
-                        route.rate_name = row.get('rate_name', '').strip()
-                        route.condition = row['condition'].strip()
-                        route.weight_limit = float(row['weight_limit'])
-                        route.transit_time = row['transit_time'].strip()
-                        route.price = float(row['price'])
-                        route.profit_margin = float(row['profit_margin'])
-                        route.min_weight = float(row.get('min_weight', 0))
-                        route.save()
-                        results['updated'] += 1
-
-                except Exception as e:
-                    results['errors'].append(f"Row {row_num}: {str(e)}")
-
-        except Exception as e:
-            results['errors'].append(f"File processing error: {str(e)}")
-
-        return results

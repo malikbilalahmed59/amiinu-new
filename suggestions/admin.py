@@ -12,7 +12,7 @@ from .models import Country, ShippingService, ShippingRoute
 class CSVUploadForm(forms.Form):
     csv_file = forms.FileField(
         label="Upload CSV File",
-        help_text="CSV format: shipping_from,shipping_to,service_type,rate_name,condition,weight_limit,transit_time,price,profit_margin,min_weight"
+        help_text="CSV format: shipping_from,shipping_to,service_type,rate_name,weight_limit,transit_time,price,profit_margin,min_weight"
     )
 
 
@@ -41,7 +41,6 @@ class ShippingRouteAdmin(admin.ModelAdmin):
         'shipping_from',
         'shipping_to',
         'service',
-        'condition',
         'weight_limit',
         'price',
         'profit_margin',
@@ -52,7 +51,6 @@ class ShippingRouteAdmin(admin.ModelAdmin):
         'shipping_from',
         'shipping_to',
         'service__service_type',
-        'condition',
         'is_active'
     ]
     search_fields = [
@@ -70,7 +68,6 @@ class ShippingRouteAdmin(admin.ModelAdmin):
         ('Pricing Details', {
             'fields': (
                 'rate_name',
-                'condition',
                 ('min_weight', 'weight_limit'),
                 'price',
                 'profit_margin'
@@ -141,7 +138,6 @@ class ShippingRouteAdmin(admin.ModelAdmin):
             'shipping_to',
             'service_type',
             'rate_name',
-            'condition',
             'weight_limit',
             'transit_time',
             'price',
