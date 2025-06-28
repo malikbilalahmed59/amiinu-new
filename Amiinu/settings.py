@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'accounts.apps.AccountsConfig',
     'shipments.apps.ShipmentsConfig',
+    'import_export',
     'suggestions.apps.SuggestionsConfig',
     'sourcing.apps.SourcingConfig',
     'warehouse.apps.WarehouseConfig',
@@ -178,6 +179,7 @@ USE_I18N = True
 
 USE_TZ = True
 
+IMPORT_EXPORT_SKIP_ADMIN_CONFIRM = False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
