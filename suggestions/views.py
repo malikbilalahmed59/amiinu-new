@@ -32,6 +32,158 @@ from datetime import datetime
 from geopy.geocoders import Nominatim
 import httpx
 import logging
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
+from .models import Country, ShippingService, ShippingRoute
+from .serializers import CountrySerializer, ShippingServiceSerializer, ShippingRouteSerializer
+
+
+class ControlRateViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing shipping routes with full CRUD operations
+    """
+    queryset = ShippingRoute.objects.all().select_related(
+        'shipping_from', 'shipping_to', 'service'
+    )
+    serializer_class = ShippingRouteSerializer
+    permission_classes = [IsAuthenticated]  # Require authentication
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['shipping_from', 'shipping_to', 'service', 'condition', 'is_active']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Filter by shipping_from country name
+        from_country = self.request.query_params.get('from_country', None)
+        if from_country:
+            queryset = queryset.filter(
+                Q(shipping_from__name__icontains=from_country)
+            )
+
+        # Filter by shipping_to country name
+        to_country = self.request.query_params.get('to_country', None)
+        if to_country:
+            queryset = queryset.filter(
+                Q(shipping_to__name__icontains=to_country)
+            )
+
+        # Filter by service type
+        service_type = self.request.query_params.get('service_type', None)
+        if service_type:
+            queryset = queryset.filter(service__service_type=service_type)
+
+        # Filter by weight range
+        weight = self.request.query_params.get('weight', None)
+        if weight:
+            try:
+                weight_val = float(weight)
+                queryset = queryset.filter(
+                    min_weight__lte=weight_val,
+                    weight_limit__gte=weight_val
+                )
+            except ValueError:
+                pass
+
+        return queryset.order_by('shipping_from__name', 'shipping_to__name')
+
+    @action(detail=False, methods=['get'])
+    def countries(self, request):
+        """Get all countries for from/to filtering"""
+        countries = Country.objects.all().order_by('name')
+        serializer = CountrySerializer(countries, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def services(self, request):
+        """Get all shipping services"""
+        services = ShippingService.objects.all().order_by('service_type')
+        serializer = ShippingServiceSerializer(services, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def from_countries(self, request):
+        """Get unique 'from' countries that have routes"""
+        from_countries = Country.objects.filter(
+            routes_from__isnull=False
+        ).distinct().order_by('name')
+        serializer = CountrySerializer(from_countries, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def routes_by_from(self, request):
+        """Get routes filtered by from country"""
+        from_country = request.query_params.get('from_country')
+        if not from_country:
+            return Response(
+                {'error': 'from_country parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        routes = self.get_queryset().filter(
+            shipping_from__name__icontains=from_country
+        )
+        serializer = self.get_serializer(routes, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def calculate_quote(self, request, pk=None):
+        """Calculate shipping quote for a specific route and weight"""
+        route = self.get_object()
+        weight = request.data.get('weight')
+
+        if not weight:
+            return Response(
+                {'error': 'weight is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            weight_val = float(weight)
+
+            # Check weight limits
+            if weight_val < route.min_weight or weight_val > route.weight_limit:
+                return Response({
+                    'error': f'Weight must be between {route.min_weight} and {route.weight_limit} KG'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Calculate price based on condition
+            if route.condition == 'flat_rate':
+                base_price = route.price
+            elif route.condition == 'per_kg':
+                base_price = route.price * weight_val
+            elif route.condition == 'per_cubic_meter':
+                # Assuming 1 cubic meter = 167 kg (air freight standard)
+                cubic_meters = weight_val / 167
+                base_price = route.price * cubic_meters
+            else:
+                base_price = route.price
+
+            # Apply profit margin
+            final_price = base_price * (1 + route.profit_margin / 100)
+
+            return Response({
+                'route_id': route.id,
+                'from': route.shipping_from.name,
+                'to': route.shipping_to.name,
+                'service': route.service.get_service_type_display(),
+                'weight': weight_val,
+                'base_price': round(base_price, 2),
+                'profit_margin': route.profit_margin,
+                'final_price': round(final_price, 2),
+                'transit_time': route.transit_time,
+                'condition': route.get_condition_display()
+            })
+
+        except ValueError:
+            return Response(
+                {'error': 'Invalid weight value'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
