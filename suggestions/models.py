@@ -83,8 +83,8 @@ class ShippingRoute(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['shipping_from', 'shipping_to', 'service']
-        ordering = ['shipping_from', 'shipping_to', 'service']
+            unique_together = ['shipping_from', 'shipping_to', 'service', 'min_weight']
+            ordering = ['shipping_from', 'shipping_to', 'service']
 
     def __str__(self):
         return f"{self.shipping_from} → {self.shipping_to} ({self.service})"

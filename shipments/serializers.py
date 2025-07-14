@@ -53,9 +53,6 @@ class ContainerSerializer(serializers.ModelSerializer):
         return container
 
 
-
-
-
 class ShipmentSerializer(serializers.ModelSerializer):
     containers = ContainerSerializer(many=True, required=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
@@ -64,14 +61,25 @@ class ShipmentSerializer(serializers.ModelSerializer):
     estimated_delivery_date = serializers.ReadOnlyField()
     total_weight = serializers.FloatField(read_only=True)
 
+    # New fields for profit tracking (mostly read-only)
+    shipping_route_id = serializers.IntegerField(write_only=True, required=False)
+    base_cost = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    profit_margin_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
+    profit_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    origin_country_name = serializers.CharField(source='origin_country.name', read_only=True)
+    destination_country_name = serializers.CharField(source='destination_country.name', read_only=True)
+
     class Meta:
         model = Shipment
         fields = [
             'id', 'user', 'shipment_number', 'shipment_type', 'international_shipping_type', 'incoterm',
-            'special_instructions', 'insure_shipment', 'insurance_value', 'is_dangerous_goods', 'is_one_percent_insured',
+            'special_instructions', 'insure_shipment', 'insurance_value', 'is_dangerous_goods',
+            'is_one_percent_insured',
             'pickup_address', 'delivery_address', 'pickup_date', 'recipient_name', 'recipient_email',
             'recipient_phone', 'sender_tax_vat', 'sender_email', 'delivery_price', 'payment_status',
-            'status', 'estimated_delivery_date', 'created_at', 'updated_at', 'total_weight', 'containers'
+            'status', 'estimated_delivery_date', 'created_at', 'updated_at', 'total_weight', 'containers',
+            'shipping_route_id', 'base_cost', 'profit_margin_percentage', 'profit_amount',
+            'origin_country_name', 'destination_country_name'
         ]
 
     def validate(self, attrs):
@@ -80,7 +88,8 @@ class ShipmentSerializer(serializers.ModelSerializer):
         containers = attrs.get('containers', [])
 
         for container_data in containers:
-            serializer = ContainerSerializer(data=container_data, context={'shipment': self.instance or self.initial_data})
+            serializer = ContainerSerializer(data=container_data,
+                                             context={'shipment': self.instance or self.initial_data})
             serializer.is_valid(raise_exception=True)
 
         return attrs
@@ -89,6 +98,23 @@ class ShipmentSerializer(serializers.ModelSerializer):
         containers_data = validated_data.pop('containers', [])
         is_one_percent_insured = validated_data.get('is_one_percent_insured')
         delivery_price = validated_data.get('delivery_price')
+        shipping_route_id = validated_data.pop('shipping_route_id', None)
+
+        # If shipping_route_id is provided, fetch the route and set profit data
+        if shipping_route_id:
+            try:
+                shipping_route = ShippingRoute.objects.get(id=shipping_route_id)
+                validated_data['shipping_route'] = shipping_route
+                validated_data['base_cost'] = shipping_route.price
+                validated_data['profit_margin_percentage'] = shipping_route.profit_margin
+                validated_data['origin_country'] = shipping_route.shipping_from
+                validated_data['destination_country'] = shipping_route.shipping_to
+
+                # Calculate profit amount if delivery_price is set
+                if delivery_price:
+                    validated_data['profit_amount'] = Decimal(delivery_price) - shipping_route.price
+            except ShippingRoute.DoesNotExist:
+                pass
 
         shipment = Shipment.objects.create(**validated_data)
 
@@ -114,6 +140,23 @@ class ShipmentSerializer(serializers.ModelSerializer):
         containers_data = validated_data.pop('containers', [])
         is_one_percent_insured = validated_data.get('is_one_percent_insured', instance.is_one_percent_insured)
         delivery_price = validated_data.get('delivery_price', instance.delivery_price)
+        shipping_route_id = validated_data.pop('shipping_route_id', None)
+
+        # Update shipping route if provided
+        if shipping_route_id:
+            try:
+                shipping_route = ShippingRoute.objects.get(id=shipping_route_id)
+                validated_data['shipping_route'] = shipping_route
+                validated_data['base_cost'] = shipping_route.price
+                validated_data['profit_margin_percentage'] = shipping_route.profit_margin
+                validated_data['origin_country'] = shipping_route.shipping_from
+                validated_data['destination_country'] = shipping_route.shipping_to
+
+                # Recalculate profit
+                if delivery_price:
+                    validated_data['profit_amount'] = Decimal(delivery_price) - shipping_route.price
+            except ShippingRoute.DoesNotExist:
+                pass
 
         instance = super().update(instance, validated_data)
 
@@ -136,4 +179,3 @@ class ShipmentSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
