@@ -69,6 +69,7 @@ from rest_framework import status
 from decimal import Decimal
 import requests
 from django.conf import settings
+from collections import defaultdict
 
 
 @api_view(['POST'])
@@ -155,56 +156,59 @@ def calculate_shipping_rates(request):
                 "error": f"No shipping routes available from {from_country.name} to {to_country.name}"
             }, status=status.HTTP_404_NOT_FOUND)
 
+        # Group routes by service to avoid duplicates
+        routes_by_service = defaultdict(list)
+        for route in routes:
+            routes_by_service[route.service].append(route)
+
         # Calculate rates for each service
         shipping_options = []
 
-        for route in routes:
-            service_type = route.service.service_type
+        for service, service_routes in routes_by_service.items():
+            service_type = service.service_type
+            # Step 1: Check if weight is within any route's range
+            selected_route = None
 
-            # Check weight compatibility
-            weight_diff = abs(total_weight - route.weight_limit)
+            for route in service_routes:
+                if route.min_weight <= total_weight <= route.weight_limit:
+                    selected_route = route
+                    break
 
-            # Apply business rules for weight differences
-            if service_type in ['economy_air', 'express_air', 'connect_plus']:
-                if weight_diff > 10:
-                    continue  # Skip this service as it's unavailable
-            elif service_type in ['fcl_sea', 'lcl_sea']:
-                if weight_diff > 50:
-                    continue  # Skip this service as it's unavailable
-
-            # Check if weight is within min and max limits
-            if total_weight < route.min_weight or total_weight > route.weight_limit:
-                # Find the closest weight range route for this service
-                closest_route = find_closest_weight_route(
-                    from_country, to_country, route.service, total_weight
+            # Step 2: If no exact match, find closest within tolerance
+            if not selected_route:
+                closest_route = find_closest_route_within_tolerance(
+                    service_routes,
+                    total_weight,
+                    service_type
                 )
                 if closest_route:
-                    route = closest_route
-                else:
-                    continue  # No suitable route found
+                    selected_route = closest_route
+
+            # Skip if no suitable route found
+            if not selected_route:
+                continue
 
             # Calculate final price with profit margin
-            base_price = route.price
-            profit_amount = (base_price * route.profit_margin) / 100
+            base_price = selected_route.price
+            profit_amount = (base_price * selected_route.profit_margin) / 100
             final_price = base_price + profit_amount
 
             shipping_option = {
                 "service_type": service_type,
-                "service_name": route.service.get_service_type_display(),
-                "rate_name": route.rate_name,
-                "transit_time": route.transit_time,
+                "service_name": service.get_service_type_display(),
+                "rate_name": selected_route.rate_name,
+                "transit_time": selected_route.transit_time,
                 "base_price": float(base_price),
-                "profit_margin": float(route.profit_margin),
+                "profit_margin": float(selected_route.profit_margin),
                 "final_price": float(final_price),
-                "weight_limit": float(route.weight_limit),
-                "min_weight": float(route.min_weight),
+                "weight_limit": float(selected_route.weight_limit),
+                "min_weight": float(selected_route.min_weight),
                 "total_weight": float(total_weight),
-                "currency": "USD",  # Assuming USD, adjust as needed
-                "route_id": route.id,  # IMPORTANT: Include route ID for profit tracking
-                # Additional info for frontend
+                "currency": "USD",
+                "route_id": selected_route.id,
                 "origin_country_id": from_country.id,
                 "destination_country_id": to_country.id,
-                "profit_amount": float(profit_amount)  # Show profit amount to frontend if needed
+                "profit_amount": float(profit_amount)
             }
 
             shipping_options.append(shipping_option)
@@ -214,7 +218,7 @@ def calculate_shipping_rates(request):
 
         response_data = {
             "pickup_country": from_country.name,
-            "pickup_country_id": from_country.id,  # Include country IDs
+            "pickup_country_id": from_country.id,
             "delivery_country": to_country.name,
             "delivery_country_id": to_country.id,
             "pickup_date": pickup_date,
@@ -231,6 +235,49 @@ def calculate_shipping_rates(request):
             {"error": f"An error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+def find_closest_route_within_tolerance(routes, target_weight, service_type):
+    """
+    Find the closest route within tolerance limits.
+    Returns None if no route is within acceptable tolerance.
+    """
+    # Define tolerance limits
+    tolerance_limits = {
+        'economy_air': 10,
+        'express_air': 10,
+        'connect_plus': 10,
+        'fcl_sea': 50,
+        'lcl_sea': 50,
+    }
+
+    tolerance = tolerance_limits.get(service_type, 0)
+    if tolerance == 0:
+        return None
+
+    closest_route = None
+    min_distance = float('inf')
+
+    for route in routes:
+        distance = 0
+
+        if target_weight < route.min_weight:
+            # Weight is below minimum
+            distance = route.min_weight - target_weight
+        elif target_weight > route.weight_limit:
+            # Weight is above maximum
+            distance = target_weight - route.weight_limit
+        else:
+            # Weight is within range (shouldn't happen as we check this earlier)
+            return route
+
+        # Only consider if within tolerance and closer than previous
+        if distance <= tolerance and distance < min_distance:
+            min_distance = distance
+            closest_route = route
+
+    return closest_route
+
 
 def get_country_from_coordinates(lat, lng):
     """Get country name from coordinates using Google Geocoding API."""
@@ -275,13 +322,16 @@ def get_country_from_coordinates(lat, lng):
 
 
 def find_closest_weight_route(from_country, to_country, service, target_weight):
-    """Find the route with the closest weight limit for the given service."""
+    """
+    Legacy function kept for backward compatibility.
+    New logic is implemented in find_closest_route_within_tolerance.
+    """
     routes = ShippingRoute.objects.filter(
         shipping_from=from_country,
         shipping_to=to_country,
         service=service,
         is_active=True
-    ).order_by('weight_limit')
+    ).order_by('min_weight', 'weight_limit')
 
     if not routes.exists():
         return None
@@ -296,11 +346,9 @@ def find_closest_weight_route(from_country, to_country, service, target_weight):
     min_diff = float('inf')
 
     for route in routes:
-        # Check if weight is above the route's capacity
         if target_weight > route.weight_limit:
             diff = target_weight - route.weight_limit
         else:
-            # Weight is below minimum
             diff = route.min_weight - target_weight
 
         if diff < min_diff:
@@ -308,11 +356,6 @@ def find_closest_weight_route(from_country, to_country, service, target_weight):
             closest_route = route
 
     return closest_route
-
-
-
-
-
 
 
 
