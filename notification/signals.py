@@ -47,6 +47,7 @@ def get_user_reference_url(user, instance, app_name, notification_type, status=N
 
     return None
 
+
 def create_notification(user, app_name, notification_type, title, message, content_object, reference_number=None,
                         reference_url=None, status=None):
     """Helper function to create notifications"""
@@ -139,9 +140,10 @@ def quotation_notification(sender, instance, created, **kwargs):
         )
 
 
-# Shipment App Signals
+# Shipment App Signals - FIXED VERSION
 @receiver(post_save, sender=ShipmentModel)
-def shipment_notification(sender, instance, created, **kwargs):
+def shipment_created_notification(sender, instance, created, **kwargs):
+    """Handle only shipment creation notifications"""
     if created:
         create_notification(
             user=instance.user,
@@ -152,51 +154,57 @@ def shipment_notification(sender, instance, created, **kwargs):
             content_object=instance,
             reference_number=instance.shipment_number
         )
-    else:
-        # Check for status changes
-        if instance.pk:
-            try:
-                old_instance = ShipmentModel.objects.get(pk=instance.pk)
 
-                if old_instance.status != instance.status:
-                    create_notification(
-                        user=instance.user,
-                        app_name='shipment',
-                        notification_type='shipment_status',
-                        title="Shipment Status Updated",
-                        message=f"Shipment {instance.shipment_number} status changed from {old_instance.get_status_display()} to {instance.get_status_display()}",
-                        content_object=instance,
-                        reference_number=instance.shipment_number
-                    )
 
-                # Check for tracking number addition
-                if not old_instance.tracking_number and instance.tracking_number:
-                    create_notification(
-                        user=instance.user,
-                        app_name='shipment',
-                        notification_type='shipment_tracking',
-                        title="Tracking Number Added",
-                        message=f"Tracking number {instance.tracking_number} has been added to shipment {instance.shipment_number}",
-                        content_object=instance,
-                        reference_number=instance.shipment_number
-                    )
+@receiver(pre_save, sender=ShipmentModel)
+def shipment_changes_notification(sender, instance, **kwargs):
+    """Handle all shipment change notifications (status, delivery price, tracking)"""
+    if instance.pk:
+        try:
+            old_instance = ShipmentModel.objects.get(pk=instance.pk)
 
-                # Check for delivery price assignment when payment is still pending
-                if (not old_instance.delivery_price and instance.delivery_price and
-                        instance.payment_status == 'pending'):
-                    create_notification(
-                        user=instance.user,
-                        app_name='shipment',
-                        notification_type='delivery_price_assigned',
-                        title="Delivery Price Available",
-                        message=f"Delivery price has been assigned for shipment {instance.shipment_number}. Please proceed with payment.",
-                        content_object=instance,
-                        reference_number=instance.shipment_number,
-                        status='delivery_price_assigned'  # Pass status for special URL handling
-                    )
+            # Check for status changes
+            if old_instance.status != instance.status:
+                create_notification(
+                    user=instance.user,
+                    app_name='shipment',
+                    notification_type='shipment_status',
+                    title="Shipment Status Updated",
+                    message=f"Shipment {instance.shipment_number} status changed from {old_instance.get_status_display()} to {instance.get_status_display()}",
+                    content_object=instance,
+                    reference_number=instance.shipment_number
+                )
 
-            except ShipmentModel.DoesNotExist:
-                pass
+            # Check for tracking number addition
+            if not old_instance.tracking_number and instance.tracking_number:
+                create_notification(
+                    user=instance.user,
+                    app_name='shipment',
+                    notification_type='shipment_tracking',
+                    title="Tracking Number Added",
+                    message=f"Tracking number {instance.tracking_number} has been added to shipment {instance.shipment_number}",
+                    content_object=instance,
+                    reference_number=instance.shipment_number
+                )
+
+            # Check for delivery price assignment when payment is still pending
+            # FIXED: Now properly compares old vs new delivery price in pre_save
+            if (not old_instance.delivery_price and instance.delivery_price and
+                    instance.payment_status == 'pending'):
+                create_notification(
+                    user=instance.user,
+                    app_name='shipment',
+                    notification_type='delivery_price_assigned',
+                    title="Delivery Price Available",
+                    message=f"Delivery price has been assigned for shipment {instance.shipment_number}. Please proceed with payment.",
+                    content_object=instance,
+                    reference_number=instance.shipment_number,
+                    status='delivery_price_assigned'  # Pass status for special URL handling
+                )
+
+        except ShipmentModel.DoesNotExist:
+            pass
+
 
 # Warehouse App Signals
 @receiver(post_save, sender=InboundShipment)

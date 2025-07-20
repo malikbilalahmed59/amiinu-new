@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from suggestions.models import ShippingRoute
 from .models import Shipment, Container, Product
 from decimal import Decimal
 
