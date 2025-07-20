@@ -23,6 +23,7 @@ class Notification(models.Model):
         ('shipment_status', 'Shipment Status Update'),
         ('shipment_tracking', 'Tracking Number Added'),
         ('shipment_payment', 'Shipment Payment Status'),
+        ('delivery_price_assigned', 'Delivery Price Assigned'),
 
         # Warehouse notifications
         ('inbound_status', 'Inbound Shipment Status'),

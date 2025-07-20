@@ -33,6 +33,9 @@ def get_user_reference_url(user, instance, app_name, notification_type, status=N
     else:
         # User URLs
         if app_name == 'shipment':
+            # Special case for delivery_price_assigned status
+            if status == 'delivery_price_assigned':
+                return f"/shipments/make-a-payment/{instance.id}"
             return "/shipments"
         elif app_name == 'sourcing':
             # Special case for quotation_sent status
@@ -43,7 +46,6 @@ def get_user_reference_url(user, instance, app_name, notification_type, status=N
             return "/warehouse"
 
     return None
-
 
 def create_notification(user, app_name, notification_type, title, message, content_object, reference_number=None,
                         reference_url=None, status=None):
@@ -155,6 +157,7 @@ def shipment_notification(sender, instance, created, **kwargs):
         if instance.pk:
             try:
                 old_instance = ShipmentModel.objects.get(pk=instance.pk)
+
                 if old_instance.status != instance.status:
                     create_notification(
                         user=instance.user,
@@ -177,9 +180,23 @@ def shipment_notification(sender, instance, created, **kwargs):
                         content_object=instance,
                         reference_number=instance.shipment_number
                     )
+
+                # Check for delivery price assignment when payment is still pending
+                if (not old_instance.delivery_price and instance.delivery_price and
+                        instance.payment_status == 'pending'):
+                    create_notification(
+                        user=instance.user,
+                        app_name='shipment',
+                        notification_type='delivery_price_assigned',
+                        title="Delivery Price Available",
+                        message=f"Delivery price has been assigned for shipment {instance.shipment_number}. Please proceed with payment.",
+                        content_object=instance,
+                        reference_number=instance.shipment_number,
+                        status='delivery_price_assigned'  # Pass status for special URL handling
+                    )
+
             except ShipmentModel.DoesNotExist:
                 pass
-
 
 # Warehouse App Signals
 @receiver(post_save, sender=InboundShipment)
